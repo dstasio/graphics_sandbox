@@ -161,7 +161,10 @@ bool gs_window_2d()
         gs_state->_platform.backbuffer_info.bmiHeader.biBitCount    = 32;
         gs_state->_platform.backbuffer_info.bmiHeader.biCompression = BI_RGB;
 
-        CreateDIBSection(0, &gs_state->_platform.backbuffer_info, DIB_RGB_COLORS, &gs_state->backbuffer, 0, 0);
+        gs_state->backbuffer = VirtualAlloc(0,
+                     gs_state->_platform.backbuffer_info.bmiHeader.biWidth * -gs_state->_platform.backbuffer_info.bmiHeader.biHeight * 4,
+                     MEM_COMMIT|MEM_RESERVE,
+                     PAGE_READWRITE);
     } // end window initialization
 
 
