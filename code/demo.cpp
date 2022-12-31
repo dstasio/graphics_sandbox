@@ -9,37 +9,23 @@ int main() {
     {
         //draw_polygon(points);
 
-        //gs_draw_point(1, 5);
+        float x = 200;
+        float y = 100;
+        float size = 10.f;
 
+        gs_draw_point(x, y, 0xFF, 0xFF, 0xFF, size);
+        x += size * 2.f;
+        gs_draw_point(x, y, 0xFF, 0x00, 0x00, size);
+        x += size * 2.f;
+        gs_draw_point(x, y, 0x00, 0xFF, 0x00, size);
+        x += size * 2.f;
+        gs_draw_point(x, y, 0x00, 0x00, 0xFF, size);
 
-#define dash(length, x, y, r, g, b) \
-        for (int it = 0; it < (length); it += 1) { \
-            ((unsigned char *)gs_state->backbuffer)[(y) * gs_state->backbuffer_width * 4 + ((x) + it) * 4 + 0] = (b); \
-            ((unsigned char *)gs_state->backbuffer)[(y) * gs_state->backbuffer_width * 4 + ((x) + it) * 4 + 1] = (g); \
-            ((unsigned char *)gs_state->backbuffer)[(y) * gs_state->backbuffer_width * 4 + ((x) + it) * 4 + 2] = (r); \
-        }
+        gs_draw_point(   0, y, 0x3F, 0x6C, 0x22, size);
+        gs_draw_point(1024, y, 0x3F, 0x9C, 0x5C, size);
 
-        int x = 100;
-        int y =  50;
-        dash(50, x, y, 0xFF, 0x00, 0x00);
-        dash(50, x, y + 2, 0xFF, 0x00, 0x00);
-        dash(50, x, y + 4, 0xFF, 0x00, 0x00);
-        dash(50, x, y + 6, 0xFF, 0x00, 0x00);
-        dash(50, x, y + 8, 0xFF, 0x00, 0x00);
-
-        x += 50;
-        dash(50, x, y, 0x00, 0xFF, 0x00);
-        dash(50, x, y + 2, 0x00, 0xFF, 0x00);
-        dash(50, x, y + 4, 0x00, 0xFF, 0x00);
-        dash(50, x, y + 6, 0x00, 0xFF, 0x00);
-        dash(50, x, y + 8, 0x00, 0xFF, 0x00);
-
-        x += 50;
-        dash(50, x, y, 0x00, 0x00, 0xFF);
-        dash(50, x, y + 2, 0x00, 0x00, 0xFF);
-        dash(50, x, y + 4, 0x00, 0x00, 0xFF);
-        dash(50, x, y + 6, 0x00, 0x00, 0xFF);
-        dash(50, x, y + 8, 0x00, 0x00, 0xFF);
+        gs_draw_point(   0,   0, 0xAA, 0x55, 0xDF, size);
+        gs_draw_point(1024, 720, 0xAA, 0x55, 0xDF, size);
 
         gs_swap();
     }

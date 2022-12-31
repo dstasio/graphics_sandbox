@@ -21,6 +21,8 @@
     #define GS_UNIX  0
 #endif
 
+#include <stdint.h>
+
 #if GS_WIN
 #include <windows.h>
 
@@ -46,7 +48,7 @@ static GS_State * gs_state;
 static GS_State  _gs_default_state;
 
 bool gs_window_2d();
-void gs_draw_point(float x, float y);
+void gs_draw_point(float x, float y, uint8_t r = 0xFF, uint8_t g = 0xFF, uint8_t b = 0xFF, float point_size = 1);
 void gs_swap();
 
 
@@ -165,6 +167,7 @@ bool gs_window_2d()
                      gs_state->_platform.backbuffer_info.bmiHeader.biWidth * -gs_state->_platform.backbuffer_info.bmiHeader.biHeight * 4,
                      MEM_COMMIT|MEM_RESERVE,
                      PAGE_READWRITE);
+        _gs_assert(gs_state->backbuffer);
     } // end window initialization
 
 
@@ -200,6 +203,23 @@ void gs_swap()
                   DIB_RGB_COLORS, SRCCOPY);
 
     ReleaseDC((HWND)gs_state->window, device_context);
+}
+
+void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float point_size)
+{
+    uint32_t color = ((r << 16) |
+                      (g <<  8) |
+                      (b      ));
+
+    // @todo: coordinate mapping here
+    for (int xx = (int)x - (int)point_size; xx <= ((int)x + (int)point_size); xx += 1) {
+    for (int yy = (int)y - (int)point_size; yy <= ((int)y + (int)point_size); yy += 1) {
+        if (xx < 0 || xx >= gs_state->backbuffer_width)
+            continue;
+        if (yy < 0 || yy >= gs_state->backbuffer_height)
+            continue;
+        ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + xx] = color;
+    }}
 }
 
 #endif // GS_WIN
