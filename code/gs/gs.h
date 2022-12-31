@@ -32,6 +32,12 @@ struct _GS_Platform
 };
 #endif
 
+struct GS_Input
+{
+    float mouse_pos_x;
+    float mouse_pos_y;
+};
+
 struct GS_State
 {
     void *window;
@@ -42,6 +48,15 @@ struct GS_State
     int   backbuffer_height;
 
     _GS_Platform _platform;
+
+    bool  is_dragging_origin;
+    float drag_start_x;
+    float drag_start_y;
+    float origin_x;
+    float origin_y;
+
+    GS_Input current_input;
+    GS_Input    last_input;
 };
 
 static GS_State * gs_state;
@@ -50,6 +65,7 @@ static GS_State  _gs_default_state;
 bool gs_window_2d();
 void gs_draw_point(float x, float y, uint8_t r = 0xFF, uint8_t g = 0xFF, uint8_t b = 0xFF, float point_size = 1);
 void gs_swap();
+void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
 
 
 // =========================================================================
@@ -173,20 +189,44 @@ bool gs_window_2d()
 
     MSG message = {};
 
+    gs_state->last_input    = gs_state->current_input;
+    gs_state->current_input = {};
     while(PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
     {
         switch(message.message)
         {
-            case WM_KEYDOWN:
+            case WM_KEYDOWN: {
 #if GS_PRESS_ESC_TO_CLOSE
             {if (message.wParam == VK_ESCAPE) gs_state->running = false;}
 #endif // GS_PRESS_ESC_TO_CLOSE
+            } break;
+
+            case WM_MBUTTONDOWN: {
+                gs_state->is_dragging_origin = true;
+                gs_state->drag_start_x = gs_state->current_input.mouse_pos_x;
+                gs_state->drag_start_y = gs_state->current_input.mouse_pos_y;
+            } break;
+            case WM_MBUTTONUP: {
+                gs_state->is_dragging_origin = false;
+            } break;
+
+            case WM_MOUSEMOVE: {
+                POINTS mouse_point = MAKEPOINTS(message.lParam);
+                gs_state->current_input.mouse_pos_x = mouse_point.x;
+                gs_state->current_input.mouse_pos_y = mouse_point.y;
+            } break;
+
             default:
             {
                 TranslateMessage(&message);
                  DispatchMessage(&message);
             } break;
         }
+    }
+
+    if (gs_state->is_dragging_origin) {
+        gs_state->origin_x += gs_state->current_input.mouse_pos_x - gs_state->drag_start_x;
+        gs_state->origin_y += gs_state->current_input.mouse_pos_y - gs_state->drag_start_y;
     }
 
     return gs_state->running;
@@ -211,6 +251,9 @@ void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float poin
                       (g <<  8) |
                       (b      ));
 
+    x += gs_state->origin_x;
+    y += gs_state->origin_y;
+
     // @todo: coordinate mapping here
     for (int xx = (int)x - (int)point_size; xx <= ((int)x + (int)point_size); xx += 1) {
     for (int yy = (int)y - (int)point_size; yy <= ((int)y + (int)point_size); yy += 1) {
@@ -220,6 +263,18 @@ void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float poin
             continue;
         ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + xx] = color;
     }}
+}
+
+void gs_clear(uint8_t r, uint8_t g, uint8_t b) {
+    uint32_t color = ((r << 16) |
+                      (g <<  8) |
+                      (b      ));
+
+    uint32_t *it = (uint32_t *)gs_state->backbuffer;
+    for (int _ = 0; _ < (gs_state->backbuffer_width * gs_state->backbuffer_height); _ += 1) {
+        *it = color;
+        it += 1;
+    }
 }
 
 #endif // GS_WIN
