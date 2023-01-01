@@ -12,7 +12,9 @@ int main() {
 
         float x = 200;
         float y = 100;
-        float size = 10.f;
+        float size = 5.f;
+
+        gs_draw_grid();
 
         gs_draw_point(x, y, 0xFF, 0xFF, 0xFF, size);
         x += size * 2.f;

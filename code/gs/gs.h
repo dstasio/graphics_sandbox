@@ -62,6 +62,7 @@ static GS_State * gs_state;
 static GS_State  _gs_default_state;
 
 bool gs_window_2d();
+void gs_draw_grid(int grid_size = 100, uint8_t r = 0x6C, uint8_t g = 0x6C, uint8_t b = 0x6C);
 void gs_draw_point(float x, float y, uint8_t r = 0xFF, uint8_t g = 0xFF, uint8_t b = 0xFF, float point_size = 1);
 void gs_swap();
 void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
@@ -89,6 +90,8 @@ void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
     #define warn(w, ...)
     #define _gs_assert(expr)
 #endif
+
+#define GS_MIN_VIEW_SCALE 0.1f
 
 #if GS_WIN
 LRESULT CALLBACK
@@ -173,13 +176,13 @@ bool gs_window_2d()
         gs_state->_platform.backbuffer_info = {};
         gs_state->_platform.backbuffer_info.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
         gs_state->_platform.backbuffer_info.bmiHeader.biWidth       = 1024;
-        gs_state->_platform.backbuffer_info.bmiHeader.biHeight      = -720; // negative height -> origin is upper-left
+        gs_state->_platform.backbuffer_info.bmiHeader.biHeight      =  720; // negative height -> origin is upper-left
         gs_state->_platform.backbuffer_info.bmiHeader.biPlanes      = 1;
         gs_state->_platform.backbuffer_info.bmiHeader.biBitCount    = 32;
         gs_state->_platform.backbuffer_info.bmiHeader.biCompression = BI_RGB;
 
         gs_state->backbuffer = VirtualAlloc(0,
-                     gs_state->_platform.backbuffer_info.bmiHeader.biWidth * -gs_state->_platform.backbuffer_info.bmiHeader.biHeight * 4,
+                     gs_state->_platform.backbuffer_info.bmiHeader.biWidth * gs_state->_platform.backbuffer_info.bmiHeader.biHeight * 4,
                      MEM_COMMIT|MEM_RESERVE,
                      PAGE_READWRITE);
         _gs_assert(gs_state->backbuffer);
@@ -202,22 +205,27 @@ bool gs_window_2d()
 #endif // GS_PRESS_ESC_TO_CLOSE
             } break;
 
-            case WM_MBUTTONDOWN: {
+            case WM_MBUTTONDOWN:
+            case WM_LBUTTONDOWN:
+            {
                 gs_state->is_dragging_origin = true;
             } break;
-            case WM_MBUTTONUP: {
+            case WM_MBUTTONUP:
+            case WM_LBUTTONUP: {
                 gs_state->is_dragging_origin = false;
             } break;
             case WM_MOUSEWHEEL: {
                 int wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
                 if (!wheel_delta) break;
                 gs_state->view_scale += wheel_delta > 0 ? 0.1f : -0.1f;
+                if (gs_state->view_scale < GS_MIN_VIEW_SCALE)
+                    gs_state->view_scale = GS_MIN_VIEW_SCALE;
             } break;
 
             case WM_MOUSEMOVE: {
                 POINTS mouse_point = MAKEPOINTS(message.lParam);
                 gs_state->current_input.mouse_pos_x = mouse_point.x;
-                gs_state->current_input.mouse_pos_y = mouse_point.y;
+                gs_state->current_input.mouse_pos_y = (float)-mouse_point.y;
             } break;
 
             default:
@@ -247,6 +255,53 @@ void gs_swap()
                   DIB_RGB_COLORS, SRCCOPY);
 
     ReleaseDC((HWND)gs_state->window, device_context);
+}
+
+void gs_draw_grid(int grid_size, uint8_t r, uint8_t g, uint8_t b)
+{
+    uint32_t color = ((r << 16) |
+                      (g <<  8) |
+                      (b      ));
+
+    grid_size = (int)((float)grid_size * gs_state->view_scale);
+
+    float scaled_origin_x = gs_state->origin_x * gs_state->view_scale;
+    float scaled_origin_y = gs_state->origin_y * gs_state->view_scale;
+
+    float grid_start_x = scaled_origin_x;
+    float grid_start_y = scaled_origin_y;
+#if 0
+    if (grid_start_x < 0)
+        grid_start_x = 0;
+#endif
+
+    float xx = grid_start_x;
+    while ((int)xx < gs_state->backbuffer_width)
+    {
+        if (xx < 0) {
+            xx += grid_size;
+            continue;
+        }
+        for (int yy = 0; yy < gs_state->backbuffer_height; yy += 1) {
+            ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + (int)xx] = color;
+        }
+
+        xx += grid_size;
+    }
+
+    float yy = grid_start_y;
+    while ((int)yy < gs_state->backbuffer_height)
+    {
+        if (yy < 0) {
+            yy += grid_size;
+            continue;
+        }
+        for (int xx = 0; xx < gs_state->backbuffer_width; xx += 1) {
+            ((uint32_t *)gs_state->backbuffer)[(int)yy * gs_state->backbuffer_width + xx] = color;
+        }
+
+        yy += grid_size;
+    }
 }
 
 void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float point_size)
