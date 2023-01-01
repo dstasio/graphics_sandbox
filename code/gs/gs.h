@@ -50,10 +50,9 @@ struct GS_State
     _GS_Platform _platform;
 
     bool  is_dragging_origin;
-    float drag_start_x;
-    float drag_start_y;
     float origin_x;
     float origin_y;
+    float view_scale;
 
     GS_Input current_input;
     GS_Input    last_input;
@@ -184,13 +183,15 @@ bool gs_window_2d()
                      MEM_COMMIT|MEM_RESERVE,
                      PAGE_READWRITE);
         _gs_assert(gs_state->backbuffer);
+
+        gs_state->view_scale = 1.f;
     } // end window initialization
 
 
     MSG message = {};
 
     gs_state->last_input    = gs_state->current_input;
-    gs_state->current_input = {};
+    //gs_state->current_input = {};
     while(PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
     {
         switch(message.message)
@@ -203,11 +204,14 @@ bool gs_window_2d()
 
             case WM_MBUTTONDOWN: {
                 gs_state->is_dragging_origin = true;
-                gs_state->drag_start_x = gs_state->current_input.mouse_pos_x;
-                gs_state->drag_start_y = gs_state->current_input.mouse_pos_y;
             } break;
             case WM_MBUTTONUP: {
                 gs_state->is_dragging_origin = false;
+            } break;
+            case WM_MOUSEWHEEL: {
+                int wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
+                if (!wheel_delta) break;
+                gs_state->view_scale += wheel_delta > 0 ? 0.1f : -0.1f;
             } break;
 
             case WM_MOUSEMOVE: {
@@ -225,8 +229,8 @@ bool gs_window_2d()
     }
 
     if (gs_state->is_dragging_origin) {
-        gs_state->origin_x += gs_state->current_input.mouse_pos_x - gs_state->drag_start_x;
-        gs_state->origin_y += gs_state->current_input.mouse_pos_y - gs_state->drag_start_y;
+        gs_state->origin_x += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos_x - gs_state->last_input.mouse_pos_x);
+        gs_state->origin_y += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos_y - gs_state->last_input.mouse_pos_y);
     }
 
     return gs_state->running;
@@ -253,6 +257,9 @@ void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float poin
 
     x += gs_state->origin_x;
     y += gs_state->origin_y;
+
+    x *= gs_state->view_scale;
+    y *= gs_state->view_scale;
 
     // @todo: coordinate mapping here
     for (int xx = (int)x - (int)point_size; xx <= ((int)x + (int)point_size); xx += 1) {

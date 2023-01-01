@@ -8,7 +8,7 @@ int main() {
     while(gs_window_2d())
     {
         //draw_polygon(points);
-        gs_clear();
+        gs_clear(0x2d, 0x2d, 0x2d);
 
         float x = 200;
         float y = 100;
