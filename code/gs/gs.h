@@ -134,6 +134,8 @@ void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point
 void gs_swap();
 void gs_clear(uint32_t color = GS_GREY(0));
 
+gs_v2 gs_screen_point_to_world(gs_v2 screen_point);
+
 // =========================================================================
 // Settings
 
@@ -481,16 +483,16 @@ void gs_draw_grid(int grid_size, uint32_t color, uint32_t x_axis_color, uint32_t
     // drawing axes
     {
         // x axis
-        if (scaled_origin.x >= 0 && scaled_origin.x < (float)gs_state->backbuffer_width) {
-            for (int yy = 0; yy < gs_state->backbuffer_height; yy += 1) {
-                ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + (int)scaled_origin.x] = x_axis_color;
+        if (scaled_origin.y >= 0 && scaled_origin.y < (float)gs_state->backbuffer_height) {
+            for (int xx = 0; xx < gs_state->backbuffer_width; xx += 1) {
+                ((uint32_t *)gs_state->backbuffer)[(int)scaled_origin.y * gs_state->backbuffer_width + xx] = x_axis_color;
             }
         }
 
         // y axis
-        if (scaled_origin.y >= 0 && scaled_origin.y < (float)gs_state->backbuffer_height) {
-            for (int xx = 0; xx < gs_state->backbuffer_width; xx += 1) {
-                ((uint32_t *)gs_state->backbuffer)[(int)scaled_origin.y * gs_state->backbuffer_width + xx] = y_axis_color;
+        if (scaled_origin.x >= 0 && scaled_origin.x < (float)gs_state->backbuffer_width) {
+            for (int yy = 0; yy < gs_state->backbuffer_height; yy += 1) {
+                ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + (int)scaled_origin.x] = y_axis_color;
             }
         }
     }
@@ -515,12 +517,21 @@ void gs_draw_point(float x, float y, uint32_t color, float point_size)
     }}
 }
 
-void gs_clear(uint32_t color) {
+void gs_clear(uint32_t color)
+{
     uint32_t *it = (uint32_t *)gs_state->backbuffer;
     for (int _ = 0; _ < (gs_state->backbuffer_width * gs_state->backbuffer_height); _ += 1) {
         *it = color;
         it += 1;
     }
+}
+
+gs_v2 gs_screen_point_to_world(gs_v2 screen_point)
+{
+    gs_v2 world_point = screen_point;
+    world_point *= 1.f / gs_state->view_scale;
+    world_point -= gs_state->origin;
+    return world_point;
 }
 
 #endif // GS_WIN
