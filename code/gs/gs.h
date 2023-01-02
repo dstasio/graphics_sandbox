@@ -34,6 +34,9 @@ struct gs_v2
 gs_v2  operator -  (gs_v2 &a)           { return {-a.x, -a.y}; }
 gs_v2  operator *  (gs_v2  a, float  b) { return { a.x * b, a.y * b}; }
 gs_v2  operator +  (gs_v2  a, gs_v2  b) { return { a.x + b.x, a.y + b.y }; }
+gs_v2  operator -  (gs_v2  a, gs_v2  b) { return { a.x - b.x, a.y - b.y }; }
+gs_v2 &operator *= (gs_v2 &a, float  b) { a.x *= b  ; a.y *= b  ; return a; }
+gs_v2 &operator *= (gs_v2 &a, gs_v2 &b) { a.x *= b.x; a.y *= b.y; return a; }
 gs_v2 &operator += (gs_v2 &a, gs_v2 &b) { a.x += b.x; a.y += b.y; return a; }
 gs_v2 &operator -= (gs_v2 &a, gs_v2 &b) { a.x -= b.x; a.y -= b.y; return a; }
 
@@ -87,9 +90,13 @@ struct GS_Input
             uint8_t arrow_left;
             uint8_t arrow_up;
             uint8_t arrow_down;
+
+            uint8_t mouse_left;
+            uint8_t mouse_right;
+            uint8_t mouse_middle;
         };
 
-        uint8_t keyboard[34];
+        uint8_t keys[37];
     };
 };
 
@@ -115,12 +122,17 @@ struct GS_State
 static GS_State * gs_state;
 static GS_State  _gs_default_state;
 
-bool gs_window_2d();
-void gs_draw_grid(int grid_size = 100, uint8_t r = 0x6C, uint8_t g = 0x6C, uint8_t b = 0x6C);
-void gs_draw_point(float x, float y, uint8_t r = 0xFF, uint8_t g = 0xFF, uint8_t b = 0xFF, float point_size = 1);
-void gs_swap();
-void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
+// this works for windows
+#define GS_RGB(r, g, b) (((r) << 16) | \
+                         ((g) <<  8) | \
+                         ((b)      ))
+#define GS_GREY(grey_value) GS_RGB(grey_value, grey_value, grey_value)
 
+bool gs_window_2d();
+void gs_draw_grid(int grid_size = 100, uint32_t color = GS_GREY(0x6C), uint32_t x_axis_color = GS_RGB(0xC4, 0x02, 0x33), uint32_t y_axis_color = GS_RGB(0, 0x9F, 0x6B));
+void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point_size = 1);
+void gs_swap();
+void gs_clear(uint32_t color = GS_GREY(0));
 
 // =========================================================================
 // Settings
@@ -132,6 +144,7 @@ void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
 #define _gs_array_len(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #if GS_INTERNAL
+#include <stdio.h>
     #define output_string(s, ...)        {char Buffer[100];sprintf_s(Buffer, s, __VA_ARGS__);OutputDebugStringA(Buffer);}
     #define throw_error_and_exit(e, ...) {output_string(" ------------------------------[ERROR] "   ## e, __VA_ARGS__); getchar(); global_error = true;}
     #define throw_error(e, ...)           output_string(" ------------------------------[ERROR] "   ## e, __VA_ARGS__)
@@ -179,6 +192,8 @@ _gs_win32_window_proc(HWND window, UINT message, WPARAM w, LPARAM l)
         // @todo: implement this
         case WM_SETCURSOR:
         {
+            HCURSOR cursor = LoadCursorA(0, IDC_CROSS);
+            SetCursor(cursor);
         } break;
 
         default:
@@ -190,6 +205,8 @@ _gs_win32_window_proc(HWND window, UINT message, WPARAM w, LPARAM l)
     return result;
 }
 
+#define GS_WINDOW_WIDTH  1024
+#define GS_WINDOW_HEIGHT  720
 
 bool gs_window_2d()
 {
@@ -209,7 +226,7 @@ bool gs_window_2d()
         wnd_class.lpszClassName   = "_gs_win32_window_class";
         auto Result               = RegisterClassA(&wnd_class);
 
-        RECT wnd_dims = {0, 0, 1024, 720};
+        RECT wnd_dims = {0, 0, GS_WINDOW_WIDTH, GS_WINDOW_HEIGHT};
         AdjustWindowRect(&wnd_dims, WS_OVERLAPPEDWINDOW, FALSE);
         wnd_dims.right  -= wnd_dims.left;
         wnd_dims.bottom -= wnd_dims.top;
@@ -226,13 +243,13 @@ bool gs_window_2d()
         _gs_assert(gs_state->window);
 
         // creating backbuffer
-        gs_state->backbuffer_width  = 1024;
-        gs_state->backbuffer_height =  720;
+        gs_state->backbuffer_width  = GS_WINDOW_WIDTH;
+        gs_state->backbuffer_height = GS_WINDOW_HEIGHT;
 
         gs_state->_platform.backbuffer_info = {};
         gs_state->_platform.backbuffer_info.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
-        gs_state->_platform.backbuffer_info.bmiHeader.biWidth       = 1024;
-        gs_state->_platform.backbuffer_info.bmiHeader.biHeight      =  720; // negative height -> origin is upper-left
+        gs_state->_platform.backbuffer_info.bmiHeader.biWidth       = GS_WINDOW_WIDTH;
+        gs_state->_platform.backbuffer_info.bmiHeader.biHeight      = GS_WINDOW_HEIGHT;
         gs_state->_platform.backbuffer_info.bmiHeader.biPlanes      = 1;
         gs_state->_platform.backbuffer_info.bmiHeader.biBitCount    = 32;
         gs_state->_platform.backbuffer_info.bmiHeader.biCompression = BI_RGB;
@@ -251,27 +268,41 @@ bool gs_window_2d()
 
     gs_state->last_input    = gs_state->current_input;
 
-    for (int it = 0; it < _gs_array_len(gs_state->current_input.keyboard); it += 1) {
-        if (gs_state->current_input.keyboard[it] == GS_JUST_RELEASED)
-            gs_state->current_input.keyboard[it] = GS_IDLE;
+    for (int it = 0; it < _gs_array_len(gs_state->current_input.keys); it += 1) {
+        if (gs_state->current_input.keys[it] == GS_JUST_RELEASED)
+            gs_state->current_input.keys[it] = GS_IDLE;
     }
     //gs_state->current_input = {};
     while(PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
     {
         switch(message.message)
         {
-            case WM_MBUTTONDOWN:
-            case WM_LBUTTONDOWN:
+            case WM_MBUTTONDOWN: {
+                gs_state->current_input.mouse_middle = GS_PRESSED;
+            } // passthrough
+            case WM_RBUTTONDOWN:
             {
+                gs_state->current_input.mouse_right = GS_PRESSED;
                 gs_state->is_dragging_origin = true;
             } break;
-            case WM_MBUTTONUP:
+
+            case WM_LBUTTONDOWN: {
+                gs_state->current_input.mouse_left = GS_PRESSED;
+            } break;
             case WM_LBUTTONUP: {
+                gs_state->current_input.mouse_left = GS_JUST_RELEASED;
+            } break;
+
+            case WM_MBUTTONUP: {
+                gs_state->current_input.mouse_middle = GS_JUST_RELEASED;
+            } // passthrough
+            case WM_RBUTTONUP: {
+                gs_state->current_input.mouse_right = GS_JUST_RELEASED;
                 gs_state->is_dragging_origin = false;
             } break;
             case WM_MOUSEWHEEL: {
 #if 0
-                gs_v2 mouse_pos = gs_state->current_input.mouse_pos;
+                gs_v2 mouse_8os = gs_state->current_input.mouse_pos;
                 //mouse_pos -= gs_state->origin;
                 gs_v2 prev_origin = -mouse_pos * (1.f / gs_state->view_scale);
 #endif
@@ -290,16 +321,17 @@ bool gs_window_2d()
             case WM_MOUSEMOVE: {
                 POINTS mouse_point = MAKEPOINTS(message.lParam);
                 gs_state->current_input.mouse_pos.x = mouse_point.x;
-                gs_state->current_input.mouse_pos.y = (float)-mouse_point.y;
+                gs_state->current_input.mouse_pos.y = GS_WINDOW_HEIGHT - (float)mouse_point.y;
             } break;
 
+#define _GS_Keydown(key, scancode) else if(message.wParam == (scancode))  gs_state->current_input.key = GS_PRESSED
+#define _GS_Keyup(key, scancode)   else if(message.wParam == (scancode))  gs_state->current_input.key = GS_JUST_RELEASED
             case WM_KEYDOWN: {
 #if GS_PRESS_ESC_TO_CLOSE
             {if (message.wParam == VK_ESCAPE) gs_state->running = false;}
 #endif // GS_PRESS_ESC_TO_CLOSE
 
-#define _GS_Keydown(key, scancode) { if(message.wParam == (scancode))  gs_state->current_input.key = GS_PRESSED; }
-#define _GS_Keyup(key, scancode)   { if(message.wParam == (scancode))  gs_state->current_input.key = GS_JUST_RELEASED; }
+                if (0) {}
                 _GS_Keydown(a, 'A');
                 _GS_Keydown(b, 'B');
                 _GS_Keydown(c, 'C');
@@ -338,6 +370,7 @@ bool gs_window_2d()
             } break;
             case WM_KEYUP:
             {
+                if (0) {}
                 _GS_Keyup(a, 'A');
                 _GS_Keyup(b, 'B');
                 _GS_Keyup(c, 'C');
@@ -404,12 +437,8 @@ void gs_swap()
     ReleaseDC((HWND)gs_state->window, device_context);
 }
 
-void gs_draw_grid(int grid_size, uint8_t r, uint8_t g, uint8_t b)
+void gs_draw_grid(int grid_size, uint32_t color, uint32_t x_axis_color, uint32_t y_axis_color)
 {
-    uint32_t color = ((r << 16) |
-                      (g <<  8) |
-                      (b      ));
-
     grid_size = (int)((float)grid_size * gs_state->view_scale);
 
     gs_v2 scaled_origin = gs_state->origin * gs_state->view_scale;
@@ -447,14 +476,28 @@ void gs_draw_grid(int grid_size, uint8_t r, uint8_t g, uint8_t b)
 
         yy += grid_size;
     }
+
+
+    // drawing axes
+    {
+        // x axis
+        if (scaled_origin.x >= 0 && scaled_origin.x < (float)gs_state->backbuffer_width) {
+            for (int yy = 0; yy < gs_state->backbuffer_height; yy += 1) {
+                ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + (int)scaled_origin.x] = x_axis_color;
+            }
+        }
+
+        // y axis
+        if (scaled_origin.y >= 0 && scaled_origin.y < (float)gs_state->backbuffer_height) {
+            for (int xx = 0; xx < gs_state->backbuffer_width; xx += 1) {
+                ((uint32_t *)gs_state->backbuffer)[(int)scaled_origin.y * gs_state->backbuffer_width + xx] = y_axis_color;
+            }
+        }
+    }
 }
 
-void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float point_size)
+void gs_draw_point(float x, float y, uint32_t color, float point_size)
 {
-    uint32_t color = ((r << 16) |
-                      (g <<  8) |
-                      (b      ));
-
     x += gs_state->origin.x;
     y += gs_state->origin.y;
 
@@ -472,11 +515,7 @@ void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float poin
     }}
 }
 
-void gs_clear(uint8_t r, uint8_t g, uint8_t b) {
-    uint32_t color = ((r << 16) |
-                      (g <<  8) |
-                      (b      ));
-
+void gs_clear(uint32_t color) {
     uint32_t *it = (uint32_t *)gs_state->backbuffer;
     for (int _ = 0; _ < (gs_state->backbuffer_width * gs_state->backbuffer_height); _ += 1) {
         *it = color;
