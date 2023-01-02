@@ -26,6 +26,17 @@
 #if GS_WIN
 #include <windows.h>
 
+struct gs_v2
+{
+    float x;
+    float y;
+};
+gs_v2  operator -  (gs_v2 &a)           { return {-a.x, -a.y}; }
+gs_v2  operator *  (gs_v2  a, float  b) { return { a.x * b, a.y * b}; }
+gs_v2  operator +  (gs_v2  a, gs_v2  b) { return { a.x + b.x, a.y + b.y }; }
+gs_v2 &operator += (gs_v2 &a, gs_v2 &b) { a.x += b.x; a.y += b.y; return a; }
+gs_v2 &operator -= (gs_v2 &a, gs_v2 &b) { a.x -= b.x; a.y -= b.y; return a; }
+
 struct _GS_Platform
 {
     BITMAPINFO backbuffer_info;
@@ -34,8 +45,52 @@ struct _GS_Platform
 
 struct GS_Input
 {
-    float mouse_pos_x;
-    float mouse_pos_y;
+    gs_v2 mouse_pos;
+
+#define GS_IDLE          0b00000000 // key was not interacted with recently
+#define GS_PRESSED       0b00000001 // key is currently held down
+#define GS_JUST_RELEASED 0b00000010 // key was being held until last frame and has just been relesed
+    union {
+        struct {
+            uint8_t a;
+            uint8_t b;
+            uint8_t c;
+            uint8_t d;
+            uint8_t e;
+            uint8_t f;
+            uint8_t g;
+            uint8_t h;
+            uint8_t i;
+            uint8_t j;
+            uint8_t k;
+            uint8_t l;
+            uint8_t m;
+            uint8_t n;
+            uint8_t o;
+            uint8_t p;
+            uint8_t q;
+            uint8_t r;
+            uint8_t s;
+            uint8_t t;
+            uint8_t u;
+            uint8_t v;
+            uint8_t w;
+            uint8_t x;
+            uint8_t y;
+            uint8_t z;
+
+            uint8_t ctrl;
+            uint8_t shift;
+            uint8_t space;
+            uint8_t tab;
+            uint8_t arrow_right;
+            uint8_t arrow_left;
+            uint8_t arrow_up;
+            uint8_t arrow_down;
+        };
+
+        uint8_t keyboard[34];
+    };
 };
 
 struct GS_State
@@ -50,8 +105,7 @@ struct GS_State
     _GS_Platform _platform;
 
     bool  is_dragging_origin;
-    float origin_x;
-    float origin_y;
+    gs_v2 origin;
     float view_scale;
 
     GS_Input current_input;
@@ -74,6 +128,8 @@ void gs_clear(uint8_t r = 0, uint8_t g = 0, uint8_t b = 0);
 #define GS_PRESS_ESC_TO_CLOSE 1
 
 // =========================================================================
+
+#define _gs_array_len(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #if GS_INTERNAL
     #define output_string(s, ...)        {char Buffer[100];sprintf_s(Buffer, s, __VA_ARGS__);OutputDebugStringA(Buffer);}
@@ -194,17 +250,16 @@ bool gs_window_2d()
     MSG message = {};
 
     gs_state->last_input    = gs_state->current_input;
+
+    for (int it = 0; it < _gs_array_len(gs_state->current_input.keyboard); it += 1) {
+        if (gs_state->current_input.keyboard[it] == GS_JUST_RELEASED)
+            gs_state->current_input.keyboard[it] = GS_IDLE;
+    }
     //gs_state->current_input = {};
     while(PeekMessageA(&message, 0, 0, 0, PM_REMOVE))
     {
         switch(message.message)
         {
-            case WM_KEYDOWN: {
-#if GS_PRESS_ESC_TO_CLOSE
-            {if (message.wParam == VK_ESCAPE) gs_state->running = false;}
-#endif // GS_PRESS_ESC_TO_CLOSE
-            } break;
-
             case WM_MBUTTONDOWN:
             case WM_LBUTTONDOWN:
             {
@@ -215,17 +270,109 @@ bool gs_window_2d()
                 gs_state->is_dragging_origin = false;
             } break;
             case WM_MOUSEWHEEL: {
+#if 0
+                gs_v2 mouse_pos = gs_state->current_input.mouse_pos;
+                //mouse_pos -= gs_state->origin;
+                gs_v2 prev_origin = -mouse_pos * (1.f / gs_state->view_scale);
+#endif
+
                 int wheel_delta = GET_WHEEL_DELTA_WPARAM(message.wParam);
                 if (!wheel_delta) break;
                 gs_state->view_scale += wheel_delta > 0 ? 0.1f : -0.1f;
                 if (gs_state->view_scale < GS_MIN_VIEW_SCALE)
                     gs_state->view_scale = GS_MIN_VIEW_SCALE;
+
+#if 0
+                gs_state->origin = gs_state->current_input.mouse_pos + prev_origin * gs_state->view_scale;
+#endif
             } break;
 
             case WM_MOUSEMOVE: {
                 POINTS mouse_point = MAKEPOINTS(message.lParam);
-                gs_state->current_input.mouse_pos_x = mouse_point.x;
-                gs_state->current_input.mouse_pos_y = (float)-mouse_point.y;
+                gs_state->current_input.mouse_pos.x = mouse_point.x;
+                gs_state->current_input.mouse_pos.y = (float)-mouse_point.y;
+            } break;
+
+            case WM_KEYDOWN: {
+#if GS_PRESS_ESC_TO_CLOSE
+            {if (message.wParam == VK_ESCAPE) gs_state->running = false;}
+#endif // GS_PRESS_ESC_TO_CLOSE
+
+#define _GS_Keydown(key, scancode) { if(message.wParam == (scancode))  gs_state->current_input.key = GS_PRESSED; }
+#define _GS_Keyup(key, scancode)   { if(message.wParam == (scancode))  gs_state->current_input.key = GS_JUST_RELEASED; }
+                _GS_Keydown(a, 'A');
+                _GS_Keydown(b, 'B');
+                _GS_Keydown(c, 'C');
+                _GS_Keydown(d, 'D');
+                _GS_Keydown(e, 'E');
+                _GS_Keydown(f, 'F');
+                _GS_Keydown(g, 'G');
+                _GS_Keydown(h, 'H');
+                _GS_Keydown(i, 'I');
+                _GS_Keydown(j, 'J');
+                _GS_Keydown(k, 'K');
+                _GS_Keydown(l, 'L');
+                _GS_Keydown(m, 'M');
+                _GS_Keydown(n, 'N');
+                _GS_Keydown(o, 'O');
+                _GS_Keydown(p, 'P');
+                _GS_Keydown(q, 'Q');
+                _GS_Keydown(r, 'R');
+                _GS_Keydown(s, 'S');
+                _GS_Keydown(t, 'T');
+                _GS_Keydown(u, 'U');
+                _GS_Keydown(v, 'V');
+                _GS_Keydown(w, 'W');
+                _GS_Keydown(x, 'X');
+                _GS_Keydown(y, 'Y');
+                _GS_Keydown(z, 'Z');
+
+                _GS_Keydown(       ctrl, VK_CONTROL);
+                _GS_Keydown(      shift, VK_SHIFT);
+                _GS_Keydown(      space, VK_SPACE);
+                _GS_Keydown(        tab, VK_TAB);
+                _GS_Keydown(arrow_right, VK_RIGHT);
+                _GS_Keydown(arrow_left , VK_LEFT);
+                _GS_Keydown(arrow_up   , VK_UP);
+                _GS_Keydown(arrow_down , VK_DOWN);
+            } break;
+            case WM_KEYUP:
+            {
+                _GS_Keyup(a, 'A');
+                _GS_Keyup(b, 'B');
+                _GS_Keyup(c, 'C');
+                _GS_Keyup(d, 'D');
+                _GS_Keyup(e, 'E');
+                _GS_Keyup(f, 'F');
+                _GS_Keyup(g, 'G');
+                _GS_Keyup(h, 'H');
+                _GS_Keyup(i, 'I');
+                _GS_Keyup(j, 'J');
+                _GS_Keyup(k, 'K');
+                _GS_Keyup(l, 'L');
+                _GS_Keyup(m, 'M');
+                _GS_Keyup(n, 'N');
+                _GS_Keyup(o, 'O');
+                _GS_Keyup(p, 'P');
+                _GS_Keyup(q, 'Q');
+                _GS_Keyup(r, 'R');
+                _GS_Keyup(s, 'S');
+                _GS_Keyup(t, 'T');
+                _GS_Keyup(u, 'U');
+                _GS_Keyup(v, 'V');
+                _GS_Keyup(w, 'W');
+                _GS_Keyup(x, 'X');
+                _GS_Keyup(y, 'Y');
+                _GS_Keyup(z, 'Z');
+
+                _GS_Keyup(       ctrl, VK_CONTROL);
+                _GS_Keyup(      shift, VK_SHIFT);
+                _GS_Keyup(      space, VK_SPACE);
+                _GS_Keyup(        tab, VK_TAB);
+                _GS_Keyup(arrow_right, VK_RIGHT);
+                _GS_Keyup(arrow_left , VK_LEFT);
+                _GS_Keyup(arrow_up   , VK_UP);
+                _GS_Keyup(arrow_down , VK_DOWN);
             } break;
 
             default:
@@ -237,8 +384,8 @@ bool gs_window_2d()
     }
 
     if (gs_state->is_dragging_origin) {
-        gs_state->origin_x += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos_x - gs_state->last_input.mouse_pos_x);
-        gs_state->origin_y += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos_y - gs_state->last_input.mouse_pos_y);
+        gs_state->origin.x += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos.x - gs_state->last_input.mouse_pos.x);
+        gs_state->origin.y += (1.f / gs_state->view_scale) * (gs_state->current_input.mouse_pos.y - gs_state->last_input.mouse_pos.y);
     }
 
     return gs_state->running;
@@ -265,17 +412,15 @@ void gs_draw_grid(int grid_size, uint8_t r, uint8_t g, uint8_t b)
 
     grid_size = (int)((float)grid_size * gs_state->view_scale);
 
-    float scaled_origin_x = gs_state->origin_x * gs_state->view_scale;
-    float scaled_origin_y = gs_state->origin_y * gs_state->view_scale;
+    gs_v2 scaled_origin = gs_state->origin * gs_state->view_scale;
 
-    float grid_start_x = scaled_origin_x;
-    float grid_start_y = scaled_origin_y;
+    gs_v2 grid_start = scaled_origin;
 #if 0
-    if (grid_start_x < 0)
-        grid_start_x = 0;
+    if (grid_start.x < 0)
+        grid_start.x = 0;
 #endif
 
-    float xx = grid_start_x;
+    float xx = grid_start.x;
     while ((int)xx < gs_state->backbuffer_width)
     {
         if (xx < 0) {
@@ -289,7 +434,7 @@ void gs_draw_grid(int grid_size, uint8_t r, uint8_t g, uint8_t b)
         xx += grid_size;
     }
 
-    float yy = grid_start_y;
+    float yy = grid_start.y;
     while ((int)yy < gs_state->backbuffer_height)
     {
         if (yy < 0) {
@@ -310,8 +455,8 @@ void gs_draw_point(float x, float y, uint8_t r, uint8_t g, uint8_t b, float poin
                       (g <<  8) |
                       (b      ));
 
-    x += gs_state->origin_x;
-    y += gs_state->origin_y;
+    x += gs_state->origin.x;
+    y += gs_state->origin.y;
 
     x *= gs_state->view_scale;
     y *= gs_state->view_scale;
