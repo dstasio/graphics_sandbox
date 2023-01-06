@@ -35,6 +35,8 @@ int main() {
             gs_draw_point(points[it].x, points[it].y, GS_RGB(0xA7, 0x35, 0x59), 10.f);
         }
 
-        gs_swap();
+        gs_draw_line(500, 300, GS_RGB(0xA7, 0x35, 0x59), (int32_t)gs_state->current_input.mouse_pos.x, (int32_t)gs_state->current_input.mouse_pos.y, 0);
+
+        gs_swap_buffers();
     }
 }

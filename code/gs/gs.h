@@ -129,12 +129,25 @@ static GS_State  _gs_default_state;
 #define GS_GREY(grey_value) GS_RGB(grey_value, grey_value, grey_value)
 
 bool gs_window_2d();
+void gs_draw_pixel(int32_t x, int32_t y, uint32_t color);
 void gs_draw_grid(int grid_size = 100, uint32_t color = GS_GREY(0x6C), uint32_t x_axis_color = GS_RGB(0xC4, 0x02, 0x33), uint32_t y_axis_color = GS_RGB(0, 0x9F, 0x6B));
 void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point_size = 1);
-void gs_swap();
+void gs_draw_line(int32_t x0, int32_t y0, uint32_t c0, int32_t x1, int32_t y1, uint32_t c1);
+void gs_swap_buffers();
 void gs_clear(uint32_t color = GS_GREY(0));
 
 gs_v2 gs_screen_point_to_world(gs_v2 screen_point);
+
+// =========================================================================
+// Utils
+
+inline
+int32_t _gs_abs(int32_t a)
+{
+    if (a < 0) return -a;
+    return a;
+}
+
 
 // =========================================================================
 // Settings
@@ -143,7 +156,8 @@ gs_v2 gs_screen_point_to_world(gs_v2 screen_point);
 
 // =========================================================================
 
-#define _gs_array_len(arr) (sizeof(arr) / sizeof(arr[0]))
+#define _gs_array_len(arr)   (sizeof(arr) / sizeof(arr[0]))
+#define _gs_swap(a, b, type) { type _temp = (a); a = (b); b = _temp; }
 
 #if GS_INTERNAL
 #include <stdio.h>
@@ -426,7 +440,7 @@ bool gs_window_2d()
     return gs_state->running;
 }
 
-void gs_swap()
+void gs_swap_buffers()
 {
     HDC device_context = GetDC((HWND)gs_state->window);
 
@@ -517,6 +531,16 @@ void gs_draw_point(float x, float y, uint32_t color, float point_size)
     }}
 }
 
+void gs_draw_pixel(int32_t x, int32_t y, uint32_t color)
+{
+    // @todo: coordinate mapping here
+    if (x < 0 || x >= gs_state->backbuffer_width)
+        return;
+    if (y < 0 || y >= gs_state->backbuffer_height)
+        return;
+    ((uint32_t *)gs_state->backbuffer)[y * gs_state->backbuffer_width + x] = color;
+}
+
 void gs_clear(uint32_t color)
 {
     uint32_t *it = (uint32_t *)gs_state->backbuffer;
@@ -532,6 +556,54 @@ gs_v2 gs_screen_point_to_world(gs_v2 screen_point)
     world_point *= 1.f / gs_state->view_scale;
     world_point -= gs_state->origin;
     return world_point;
+}
+
+void gs_draw_line(int32_t x0, int32_t y0, uint32_t c0,
+                  int32_t x1, int32_t y1, uint32_t c1)
+{
+    int32_t x, y;
+    int32_t *pixel_x = &x;
+    int32_t *pixel_y = &y;
+
+    int32_t dx = x1 - x0,
+            dy = y1 - y0;
+    if (_gs_abs(dx) < _gs_abs(dy))
+    {
+        _gs_swap(x0, y0, int32_t);
+        _gs_swap(x1, y1, int32_t);
+        _gs_swap(dx, dy, int32_t);
+        pixel_x = &y;
+        pixel_y = &x;
+    }
+
+    if (x1 < x0) {
+        _gs_swap(x0, x1,  int32_t);
+        _gs_swap(y0, y1,  int32_t);
+        _gs_swap(c0, c1, uint32_t);
+        dx = -dx;
+        dy = -dy;
+    }
+
+    int32_t e = 0,
+            i = 1;
+    y = y0;
+
+    if (y1 < y0)
+        i = -1;
+
+    //float color_t = 0.f;
+    //float color_tStep = 1.f / (float)(dx);
+    for (x = x0; x <= x1; x++)  {
+        //setPixel(*pixelX, *pixelY, lerp(c0, c1, color_t));
+        //color_t += color_tStep;
+        gs_draw_pixel(*pixel_x, *pixel_y, c0);
+
+        e += dy;
+        if ( ((e << 1)*i) >= dx) {
+            y += 1*i;
+            e -= dx*i;
+        }
+    }
 }
 
 #endif // GS_WIN
