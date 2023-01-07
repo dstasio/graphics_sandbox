@@ -135,6 +135,8 @@ static GS_State  _gs_default_state;
                          ((g) <<  8) | \
                          ((b)      ))
 #define GS_GREY(grey_value) GS_RGB(grey_value, grey_value, grey_value)
+#define GS_YELLOW GS_RGB(0xFF, 0xD3, 0x00)
+#define GS_BLUE   GS_RGB(0x00, 0x87, 0xBD)
 
 bool gs_window_2d();
 void gs_draw_pixel(int32_t x, int32_t y, uint32_t color);
