@@ -12,12 +12,22 @@ bool equals(float a, float b, float eps = 0.0001f)
 }
 
 typedef gs_v2 v2;
-struct Ray
-{
-    v2 origin;
-    v2 dir;
-};
 v2 &operator /= (v2 &a, float  b) { a.x /= b  ; a.y /= b  ; return a; }
+
+inline v2
+get_orthogonal(v2 a)
+{
+    // crossing with v3(0, 0, 1)
+    v2 result = { a.y, -a.x, };
+    return result;
+}
+
+inline float
+dot(v2 a, v2 b)
+{
+    float result = a.x*b.x + a.y*b.y;
+    return result;
+}
 
 float length(v2 vector)
 {
@@ -43,17 +53,22 @@ v2 normalize(v2 vector)
     return result;
 };
 
-inline v2
-get_orthogonal(v2 a)
+v2 transform_space(v2 vector, v2 new_up, v2 new_right)
 {
-    // crossing with v3(0, 0, 1)
+    _gs_assert(equals(length(new_up), 1.f));
+    _gs_assert(equals(length(new_right), 1.f));
 
-    v2 result = {
-         a.y*1.f,
-        -a.x*1.f,
-    };
+    v2 result;
+    result.x = dot(vector, new_right);
+    result.y = dot(vector, new_up);
     return result;
-}
+};
+
+struct Ray
+{
+    v2 origin;
+    v2 dir;
+};
 
 struct Refractive_Object
 {
@@ -79,9 +94,53 @@ struct Refractive_Object
 
 void draw_refractive(Refractive_Object *object)
 {
-    uint32_t outside = GS_RGB(0x6c, 0xef, 0x4f);
-    uint32_t  inside = GS_RGB(0xef, 0x32, 0x71);
-    gs_draw_line(object->start, object->end, outside);
+    float inside_dist = 5.f;
+
+    uint32_t outside_color = GS_RGB(0x6c, 0xef, 0x4f);
+    uint32_t  inside_color = GS_RGB(0xef, 0x32, 0x71);
+    gs_draw_line(object->start, object->end, outside_color);
+
+    v2 right = normalize(get_orthogonal(object->end - object->start));
+    gs_draw_line(object->start - right * inside_dist, object->end - right * inside_dist, inside_color);
+}
+
+float intersect(Refractive_Object *object, Ray ray)
+{
+    float _len = 50.f;
+
+    v2 object_up    = normalize(object->end - object->start);
+    v2 object_right = normalize(get_orthogonal(object_up));
+
+#if 0
+    gs_draw_line(ray.origin, ray.origin + ray.dir * _len, GS_YELLOW);
+#endif
+
+    Ray local_ray = ray;
+    local_ray.origin -= object->start;
+    //ray.dir    -= object->start;
+    local_ray.origin = transform_space(local_ray.origin, object_up, object_right);
+    local_ray.dir    = transform_space(local_ray.   dir, object_up, object_right);
+
+#if 0
+    gs_draw_line(object->start, object->end, GS_BLUE);
+    gs_draw_line(object->start, object->start + object_up    * _len, GS_RED);
+    gs_draw_line(object->start, object->start + object_right * _len, GS_RED);
+#endif
+
+
+    float target_right = 0.f;
+    float right_steps = (-local_ray.origin.x) / local_ray.dir.x;
+
+#if 0
+    v2 intersection = local_ray.origin + local_ray.dir * right_steps;
+    intersection = object_right * intersection.x + object_up * intersection.y;
+    intersection += object->start;
+
+    gs_draw_line(ray.origin, intersection, GS_GREEN);
+#endif
+
+    // @todo: return bool does_intersect
+    return right_steps;
 }
 
 int main() {
@@ -99,7 +158,7 @@ int main() {
         }
     }
 
-    Refractive_Object refractive = {{500.f, 10.f}, {500.f, 900.f}};
+    Refractive_Object refractive = {{500.f, 10.f}, {300.f, 900.f}};
 
     while(gs_window_2d())
     {
@@ -109,21 +168,23 @@ int main() {
         gs_draw_grid(100, GS_GREY(0x3D));
 
         // mouse stuff
+#if 1
         {
             v2 mouse = gs_state->current_input.mouse_pos;
                mouse = gs_screen_to_world(mouse);
 
-            v2 o = {500, 400};
-            gs_draw_line(o, mouse, GS_YELLOW);
-
-            v2 orthogonal = get_orthogonal(mouse - o);
-            gs_draw_line(o, o + orthogonal, GS_BLUE);
+            Ray r;
+            r.origin = {900.f, 500.f};
+            r.dir    = normalize(mouse - r.origin);
+            float dist = intersect(&refractive, r);
+            gs_draw_line(r.origin, r.origin + r.dir * dist, GS_YELLOW);
         }
+#endif
 
         // rays
-        float ray_len = 500.f;
         for (int it = 0; it < _gs_array_len(rays); it += 1)
         {
+            float ray_len = intersect(&refractive, rays[it]);
             gs_draw_line(rays[it].origin, rays[it].origin + rays[it].dir*ray_len, GS_RGB(0xA7, 0x35, 0x59));
         }
 
