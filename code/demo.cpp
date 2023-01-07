@@ -72,25 +72,11 @@ struct Ray
     v2 dir;
 };
 
-struct Polar_Ray
+v2 vector_from_angle(float angle)
 {
-    v2    origin;
-    float angle;
-};
-
-Polar_Ray make_polar(Ray ray)
-{
-    Polar_Ray result;
-    result.origin = ray.origin;
-    result.angle  = atan2f(ray.dir.y, ray.dir.x);
-    return result;
-}
-
-Ray make_ray(Polar_Ray polar)
-{
-    Ray result;
-    result.origin = polar.origin;
-    result.dir    = { cosf(polar.angle), sinf(polar.angle) };
+    v2 result;
+    result.x = cosf(angle);
+    result.y = sinf(angle);
     return result;
 };
 
@@ -114,6 +100,8 @@ struct Refractive_Object
     //
     v2 start;
     v2   end;
+
+    float refractive_index;
 };
 
 void draw_refractive(Refractive_Object *object)
@@ -128,6 +116,7 @@ void draw_refractive(Refractive_Object *object)
     gs_draw_line(object->start - right * inside_dist, object->end - right * inside_dist, inside_color);
 }
 
+// @note: returns negative number if there is no intersection.
 float intersect(Refractive_Object *object, Ray ray)
 {
     float _len = 50.f;
@@ -155,8 +144,12 @@ float intersect(Refractive_Object *object, Ray ray)
     float target_right = 0.f;
     float right_steps = (-local_ray.origin.x) / local_ray.dir.x;
 
+    v2 local_intersection = local_ray.origin + local_ray.dir * right_steps;
+    if (local_intersection.y < 0)
+        return -1.f;
+    if (local_intersection.y > dot(object_up, object->end - object->start))
+        return -1.f;
 #if 0
-    v2 intersection = local_ray.origin + local_ray.dir * right_steps;
     intersection = object_right * intersection.x + object_up * intersection.y;
     intersection += object->start;
 
@@ -165,6 +158,39 @@ float intersect(Refractive_Object *object, Ray ray)
 
     // @todo: return bool does_intersect
     return right_steps;
+}
+
+bool refract(Refractive_Object *object, Ray incoming_ray, Ray *refracted_ray)
+{
+    float dist = intersect(object, incoming_ray);
+    if (dist < 0.f)
+        return false; // no intersection
+
+    if (!refracted_ray)
+        return true; // there is an intersection, but we don't bother computing it since there is not return pointer.
+
+#if 0
+    gs_draw_line(incoming_ray.origin, incoming_ray.origin + incoming_ray.dir * dist, GS_YELLOW);
+#endif
+
+    v2 intersection_point = incoming_ray.origin + incoming_ray.dir * dist;
+    v2    object_normal       = normalize(get_orthogonal(object->end - object->start));
+    float object_normal_angle = atan2f(object_normal.y, object_normal.x);
+
+    float  incoming_angle  = atan2f(-incoming_ray.dir.y, -incoming_ray.dir.x);
+    incoming_angle -= object_normal_angle;
+    float refractive_index_air   = 1.000293f;
+    float refracted_angle  = asinf((refractive_index_air / object->refractive_index) * sinf(incoming_angle));
+
+    refracted_ray->origin = intersection_point;
+    refracted_ray->dir    = vector_from_angle(PI + object_normal_angle + refracted_angle);
+#if 0
+    gs_draw_line(intersection_point, intersection_point + object_normal * 50, GS_BLUE);
+    gs_draw_line(intersection_point, intersection_point - object_normal * 50, GS_BLUE);
+    gs_draw_line(refracted_ray.origin, refracted_ray.origin + refracted_ray.dir * 500, GS_GREEN);
+#endif
+
+    return true;
 }
 
 int main() {
@@ -182,7 +208,7 @@ int main() {
         }
     }
 
-    Refractive_Object refractive = {{500.f, 10.f}, {300.f, 900.f}};
+    Refractive_Object refractive = {{500.f, 10.f}, {300.f, 900.f}, 1.52f};
 
     while(gs_window_2d())
     {
@@ -209,33 +235,33 @@ int main() {
             v2 mouse = gs_state->current_input.mouse_pos;
                mouse = gs_screen_to_world(mouse);
 
-            Ray r;
-            r.origin = {900.f, 500.f};
-            r.dir    = normalize(mouse - r.origin);
-            float dist = intersect(&refractive, r);
-            gs_draw_line(r.origin, r.origin + r.dir * dist, GS_YELLOW);
+            Ray lightray;
+            lightray.origin = {900.f, 500.f};
+            lightray.dir    = normalize(mouse - lightray.origin);
 
-            v2 intersection_point = r.origin + r.dir * dist;
-            Ray       object_normal_ray   = { intersection_point, normalize(get_orthogonal(refractive.end - refractive.start)) };
-            Polar_Ray object_normal_polar = make_polar(object_normal_ray);
-
-            Polar_Ray  incoming_polar = make_polar({intersection_point, -r.dir});
-            float  incoming_angle = incoming_polar.angle - object_normal_polar.angle;
-            float refracted_angle = asinf((1.000293f / 1.52f) * sinf(incoming_angle));
-
-            Polar_Ray refracted_polar = {incoming_polar.origin, PI + object_normal_polar.angle + refracted_angle};
-            Ray       refracted_ray   = make_ray(refracted_polar);
-            gs_draw_line(intersection_point, intersection_point + object_normal_ray.dir * 50, GS_BLUE);
-            gs_draw_line(intersection_point, intersection_point - object_normal_ray.dir * 50, GS_BLUE);
-            gs_draw_line(refracted_ray.origin, refracted_ray.origin + refracted_ray.dir * 500, GS_GREEN);
+            Ray refracted;
+            if (refract(&refractive, lightray, &refracted))
+            {
+                gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 500.f, GS_CYAN);
+                gs_draw_line(lightray.origin, refracted.origin, GS_CYAN);
+            }
+            else 
+                gs_draw_line(lightray.origin, lightray.origin + lightray.dir * 1000.f, GS_CYAN);
         }
 #endif
 
         // rays
         for (int it = 0; it < _gs_array_len(rays); it += 1)
         {
-            float ray_len = intersect(&refractive, rays[it]);
-            gs_draw_line(rays[it].origin, rays[it].origin + rays[it].dir*ray_len, GS_RGB(0xA7, 0x35, 0x59));
+            Ray refracted;
+            if (refract(&refractive, rays[it], &refracted))
+            {
+                gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 500.f, GS_RGB(0xA7, 0x35, 0x59));
+                gs_draw_line(rays[it].origin, refracted.origin, GS_RGB(0xA7, 0x35, 0x59));
+                continue;
+            }
+
+            gs_draw_line(rays[it].origin, rays[it].origin + rays[it].dir*2000.f, GS_RGB(0xA7, 0x35, 0x59));
         }
 
         draw_refractive(&refractive);

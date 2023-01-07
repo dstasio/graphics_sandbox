@@ -141,9 +141,9 @@ static GS_State  _gs_default_state;
 #define GS_GREEN  GS_RGB(0x00, 0xDF, 0x78)
 #define GS_BLUE   GS_RGB(0x00, 0x87, 0xDF)
 
-#define GS_YELLOW GS_RGB(0xFF, 0xD3, 0x00)
+#define GS_YELLOW  GS_RGB(0xFF, 0xD3, 0x00)
 #define GS_MAGENTA
-#define GS_CYAN
+#define GS_CYAN    GS_RGB(0x00, 0xEF, 0xDF)
 
 bool gs_window_2d();
 void gs_draw_pixel(int32_t x, int32_t y, uint32_t color);
