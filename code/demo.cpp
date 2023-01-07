@@ -2,44 +2,74 @@
 
 #include "gs/gs.h"
 
+#include <math.h>
 
+bool equals(float a, float b, float eps = 0.0001f)
+{
+    // @todo: correct float comparison
+    bool result = fabsf(a - b) < (double)eps;
+    return result;
+}
+
+typedef gs_v2 v2;
+struct Ray
+{
+    v2 origin;
+    v2 dir;
+};
+v2 &operator /= (v2 &a, float  b) { a.x /= b  ; a.y /= b  ; return a; }
+
+float length(v2 vector)
+{
+    float result = vector.x*vector.x + vector.y*vector.y;
+          result = sqrtf(result);
+    return result;
+};
+
+v2 normalize(v2 vector)
+{
+    v2 result  = vector;
+    float l = length(vector);
+    if (equals(l, 0)) {
+        // error
+        return {};
+    }
+
+    if (equals(l, 1.f)) {
+        return result;
+    }
+
+    result /= l;
+    return result;
+};
 
 int main() {
-    gs_v2 points[10]  = {};
-    int point_count = -1;
-    bool is_creating_point = false;
+    Ray rays[10] = {};
+
+    {
+        float x = 1300.f;
+        float y =   10.f;
+        v2  dir = normalize({-700.f, 0});
+        for (int it = 0; it < _gs_array_len(rays); it += 1) {
+            rays[it].origin = {x, y};
+            rays[it].dir    = dir;
+
+            y += 50.f;
+        }
+    }
 
     while(gs_window_2d())
     {
         //draw_polygon(points);
         gs_clear(GS_GREY(0x2D));
 
-        gs_draw_grid();
-
-        if (gs_state->current_input.mouse_left == GS_PRESSED) {
-            if (!is_creating_point) {
-                point_count += 1;
-                is_creating_point = true;
-
-                if (point_count >= _gs_array_len(points))
-                    point_count = 0;
-            }
-
-            points[point_count]  = gs_screen_to_world(gs_state->current_input.mouse_pos);
-        }
-        else if (gs_state->current_input.mouse_left == GS_JUST_RELEASED) {
-            is_creating_point = false;
-        }
-
-        for (int it = 0; it <= point_count; it += 1) {
-            gs_draw_point(points[it].x, points[it].y, GS_RGB(0xA7, 0x35, 0x59), 10.f);
-        }
+        gs_draw_grid(100, GS_GREY(0x3D));
 
         // rays
-        gs_v2 ray_origin = {900.f, 10.f};
-        for (; ray_origin.y < 1000.f; ray_origin.y += 10.f)
+        float ray_len = 500.f;
+        for (int it = 0; it < _gs_array_len(rays); it += 1)
         {
-            gs_draw_line(ray_origin, ray_origin - gs_make_v2(700.f, 0.f), GS_RGB(0xA7, 0x35, 0x59));
+            gs_draw_line(rays[it].origin, rays[it].origin + rays[it].dir*ray_len, GS_RGB(0xA7, 0x35, 0x59));
         }
 
         gs_swap_buffers();

@@ -26,6 +26,9 @@
 #if GS_WIN
 #include <windows.h>
 
+// ===========================================================================
+// Math
+//
 struct gs_v2
 {
     float x;
@@ -41,6 +44,9 @@ gs_v2 &operator += (gs_v2 &a, gs_v2 &b) { a.x += b.x; a.y += b.y; return a; }
 gs_v2 &operator -= (gs_v2 &a, gs_v2 &b) { a.x -= b.x; a.y -= b.y; return a; }
 
 gs_v2 gs_make_v2(float x, float y) { return {x, y}; }
+
+// ==========================================================================
+//
 
 struct _GS_Platform
 {
