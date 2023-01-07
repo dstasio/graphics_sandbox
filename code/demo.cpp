@@ -220,7 +220,10 @@ int main() {
             Polar_Ray object_normal_polar = make_polar(object_normal_ray);
 
             Polar_Ray  incoming_polar = make_polar({intersection_point, -r.dir});
-            Polar_Ray refracted_polar = {incoming_polar.origin, PI + incoming_polar.angle /*- object_normal_polar.angle*/};
+            float  incoming_angle = incoming_polar.angle - object_normal_polar.angle;
+            float refracted_angle = asinf((1.000293f / 1.52f) * sinf(incoming_angle));
+
+            Polar_Ray refracted_polar = {incoming_polar.origin, PI + object_normal_polar.angle + refracted_angle};
             Ray       refracted_ray   = make_ray(refracted_polar);
             gs_draw_line(intersection_point, intersection_point + object_normal_ray.dir * 50, GS_BLUE);
             gs_draw_line(intersection_point, intersection_point - object_normal_ray.dir * 50, GS_BLUE);
