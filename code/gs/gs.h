@@ -40,6 +40,8 @@ gs_v2 &operator *= (gs_v2 &a, gs_v2 &b) { a.x *= b.x; a.y *= b.y; return a; }
 gs_v2 &operator += (gs_v2 &a, gs_v2 &b) { a.x += b.x; a.y += b.y; return a; }
 gs_v2 &operator -= (gs_v2 &a, gs_v2 &b) { a.x -= b.x; a.y -= b.y; return a; }
 
+gs_v2 gs_make_v2(float x, float y) { return {x, y}; }
+
 struct _GS_Platform
 {
     BITMAPINFO backbuffer_info;
@@ -132,11 +134,15 @@ bool gs_window_2d();
 void gs_draw_pixel(int32_t x, int32_t y, uint32_t color);
 void gs_draw_grid(int grid_size = 100, uint32_t color = GS_GREY(0x6C), uint32_t x_axis_color = GS_RGB(0xC4, 0x02, 0x33), uint32_t y_axis_color = GS_RGB(0, 0x9F, 0x6B));
 void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point_size = 1);
-void gs_draw_line(int32_t x0, int32_t y0, uint32_t c0, int32_t x1, int32_t y1, uint32_t c1);
+
+void gs_draw_line          (gs_v2 start_point, gs_v2 end_point, uint32_t color);
+void gs_draw_line_on_screen(int32_t x0, int32_t y0, uint32_t c0, int32_t x1, int32_t y1, uint32_t c1);
+
 void gs_swap_buffers();
 void gs_clear(uint32_t color = GS_GREY(0));
 
-gs_v2 gs_screen_point_to_world(gs_v2 screen_point);
+gs_v2 gs_screen_to_world(gs_v2 screen_point);
+gs_v2 gs_world_to_screen(gs_v2 screen_point);
 
 // =========================================================================
 // Utils
@@ -550,7 +556,7 @@ void gs_clear(uint32_t color)
     }
 }
 
-gs_v2 gs_screen_point_to_world(gs_v2 screen_point)
+gs_v2 gs_screen_to_world(gs_v2 screen_point)
 {
     gs_v2 world_point = screen_point;
     world_point *= 1.f / gs_state->view_scale;
@@ -558,8 +564,28 @@ gs_v2 gs_screen_point_to_world(gs_v2 screen_point)
     return world_point;
 }
 
-void gs_draw_line(int32_t x0, int32_t y0, uint32_t c0,
-                  int32_t x1, int32_t y1, uint32_t c1)
+gs_v2 gs_world_to_screen(gs_v2 screen_point)
+{
+    screen_point.x += gs_state->origin.x;
+    screen_point.y += gs_state->origin.y;
+
+    screen_point.x *= gs_state->view_scale;
+    screen_point.y *= gs_state->view_scale;
+
+    return screen_point;
+}
+
+void gs_draw_line(gs_v2 start_point, gs_v2 end_point, uint32_t color)
+{
+    start_point = gs_world_to_screen(start_point);
+      end_point = gs_world_to_screen(  end_point);
+
+    gs_draw_line_on_screen((int32_t)start_point.x, (int32_t)start_point.y, color,
+                           (int32_t)  end_point.x, (int32_t)  end_point.y, color);
+}
+
+void gs_draw_line_on_screen(int32_t x0, int32_t y0, uint32_t c0,
+                            int32_t x1, int32_t y1, uint32_t c1)
 {
     int32_t x, y;
     int32_t *pixel_x = &x;

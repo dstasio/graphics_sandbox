@@ -25,7 +25,7 @@ int main() {
                     point_count = 0;
             }
 
-            points[point_count]  = gs_screen_point_to_world(gs_state->current_input.mouse_pos);
+            points[point_count]  = gs_screen_to_world(gs_state->current_input.mouse_pos);
         }
         else if (gs_state->current_input.mouse_left == GS_JUST_RELEASED) {
             is_creating_point = false;
@@ -35,7 +35,12 @@ int main() {
             gs_draw_point(points[it].x, points[it].y, GS_RGB(0xA7, 0x35, 0x59), 10.f);
         }
 
-        gs_draw_line(500, 300, GS_RGB(0xA7, 0x35, 0x59), (int32_t)gs_state->current_input.mouse_pos.x, (int32_t)gs_state->current_input.mouse_pos.y, 0);
+        // rays
+        gs_v2 ray_origin = {900.f, 10.f};
+        for (; ray_origin.y < 1000.f; ray_origin.y += 10.f)
+        {
+            gs_draw_line(ray_origin, ray_origin - gs_make_v2(700.f, 0.f), GS_RGB(0xA7, 0x35, 0x59));
+        }
 
         gs_swap_buffers();
     }
