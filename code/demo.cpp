@@ -4,6 +4,8 @@
 
 #include <math.h>
 
+#define PI 3.1415926535897932384626433832795028841971f
+
 bool equals(float a, float b, float eps = 0.0001f)
 {
     // @todo: correct float comparison
@@ -68,6 +70,28 @@ struct Ray
 {
     v2 origin;
     v2 dir;
+};
+
+struct Polar_Ray
+{
+    v2    origin;
+    float angle;
+};
+
+Polar_Ray make_polar(Ray ray)
+{
+    Polar_Ray result;
+    result.origin = ray.origin;
+    result.angle  = atan2f(ray.dir.y, ray.dir.x);
+    return result;
+}
+
+Ray make_ray(Polar_Ray polar)
+{
+    Ray result;
+    result.origin = polar.origin;
+    result.dir    = { cosf(polar.angle), sinf(polar.angle) };
+    return result;
 };
 
 struct Refractive_Object
@@ -167,6 +191,18 @@ int main() {
 
         gs_draw_grid(100, GS_GREY(0x3D));
 
+
+        if (gs_state->current_input.arrow_left == GS_PRESSED)
+            refractive.end.x -= 2.f;
+        if (gs_state->current_input.arrow_right == GS_PRESSED)
+            refractive.end.x += 2.f;
+
+        if (gs_state->current_input.arrow_up == GS_PRESSED)
+            refractive.start.y += 2.f;
+        if (gs_state->current_input.arrow_down == GS_PRESSED)
+            refractive.start.y -= 2.f;
+
+
         // mouse stuff
 #if 1
         {
@@ -178,6 +214,17 @@ int main() {
             r.dir    = normalize(mouse - r.origin);
             float dist = intersect(&refractive, r);
             gs_draw_line(r.origin, r.origin + r.dir * dist, GS_YELLOW);
+
+            v2 intersection_point = r.origin + r.dir * dist;
+            Ray       object_normal_ray   = { intersection_point, normalize(get_orthogonal(refractive.end - refractive.start)) };
+            Polar_Ray object_normal_polar = make_polar(object_normal_ray);
+
+            Polar_Ray  incoming_polar = make_polar({intersection_point, -r.dir});
+            Polar_Ray refracted_polar = {incoming_polar.origin, PI + incoming_polar.angle /*- object_normal_polar.angle*/};
+            Ray       refracted_ray   = make_ray(refracted_polar);
+            gs_draw_line(intersection_point, intersection_point + object_normal_ray.dir * 50, GS_BLUE);
+            gs_draw_line(intersection_point, intersection_point - object_normal_ray.dir * 50, GS_BLUE);
+            gs_draw_line(refracted_ray.origin, refracted_ray.origin + refracted_ray.dir * 500, GS_GREEN);
         }
 #endif
 
