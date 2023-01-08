@@ -80,7 +80,7 @@ v2 vector_from_angle(float angle)
     return result;
 };
 
-struct Refractive_Object
+struct Refractive_Segment
 {
     //
     //               inside
@@ -104,7 +104,7 @@ struct Refractive_Object
     float refractive_index;
 };
 
-void draw_refractive(Refractive_Object *object)
+void draw_refractive(Refractive_Segment *object)
 {
     float inside_dist = 5.f;
 
@@ -117,7 +117,7 @@ void draw_refractive(Refractive_Object *object)
 }
 
 // @note: returns negative number if there is no intersection.
-float intersect(Refractive_Object *object, Ray ray)
+float intersect(Refractive_Segment *object, Ray ray)
 {
     float _len = 50.f;
 
@@ -160,7 +160,7 @@ float intersect(Refractive_Object *object, Ray ray)
     return right_steps;
 }
 
-bool refract(Refractive_Object *object, Ray incoming_ray, Ray *refracted_ray)
+bool refract(Refractive_Segment *object, Ray incoming_ray, Ray *refracted_ray)
 {
     float dist = intersect(object, incoming_ray);
     if (dist < 0.f)
@@ -208,7 +208,7 @@ int main() {
         }
     }
 
-    Refractive_Object refractive = {{500.f, 10.f}, {300.f, 900.f}, 1.52f};
+    Refractive_Segment refractive = {{500.f, 10.f}, {300.f, 900.f}, 1.52f};
 
     while(gs_window_2d())
     {
@@ -265,6 +265,35 @@ int main() {
         }
 
         draw_refractive(&refractive);
+
+
+        {
+            float resolution = 64.f;
+            float angle_step = 2*PI / resolution;
+
+            v2 circle_center = {700, 700};
+            float radius = 200.f;
+
+            v2 points[50] = {};
+            int point_count = 0;
+            for (float angle = 2*PI; angle >= 0.f; angle -= angle_step)
+            {
+                v2 radius_dir = { cosf(angle), sinf(angle) };
+                if (radius_dir.x < 0.8f)
+                    continue;
+
+                radius_dir *= radius;
+                radius_dir += circle_center;
+                gs_draw_point(radius_dir.x, radius_dir.y, GS_YELLOW);
+
+                points[point_count++] = radius_dir;
+            }
+
+            for (int it = 1; it < point_count; it += 1) {
+                gs_draw_line(points[it - 1], points[it], GS_BLUE);
+            }
+        }
+        
 
         gs_swap_buffers();
     }
