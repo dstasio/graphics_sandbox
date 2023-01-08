@@ -230,7 +230,7 @@ int main() {
 
 
         // mouse stuff
-#if 1
+#if 0
         {
             v2 mouse = gs_state->current_input.mouse_pos;
                mouse = gs_screen_to_world(mouse);
@@ -268,22 +268,37 @@ int main() {
 
 
         {
+            static v2 circle_center = {};
+            if (gs_state->current_input.l == GS_PRESSED)
+                circle_center.x += 0.5f;
+            if (gs_state->current_input.h == GS_PRESSED)
+                circle_center.x -= 0.5f;
+            float lens_height    = 100.f;
+            float lens_thickness =  50.f;
+
+            gs_draw_point(circle_center.x, circle_center.y, GS_RED, 10.f);
+            gs_draw_point( lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
+            gs_draw_point(-lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
+            gs_draw_point( lens_thickness * 0.5f, -lens_height * 0.5f, GS_CYAN);
+            gs_draw_point(-lens_thickness * 0.5f, -lens_height * 0.5f, GS_CYAN);
+
+            float radius = length(gs_make_v2(lens_thickness * 0.5f, lens_height * 0.5f) - circle_center);
+
             float resolution = 64.f;
             float angle_step = 2*PI / resolution;
 
-            v2 circle_center = {700, 700};
-            float radius = 200.f;
 
-            v2 points[50] = {};
+            v2 points[250] = {};
             int point_count = 0;
-            for (float angle = 2*PI; angle >= 0.f; angle -= angle_step)
+            for (float angle = -PI; angle < PI; angle += angle_step)
             {
                 v2 radius_dir = { cosf(angle), sinf(angle) };
-                if (radius_dir.x < 0.8f)
-                    continue;
-
                 radius_dir *= radius;
                 radius_dir += circle_center;
+
+                if (radius_dir.x < (lens_thickness * 0.5f))
+                    continue;
+
                 gs_draw_point(radius_dir.x, radius_dir.y, GS_YELLOW);
 
                 points[point_count++] = radius_dir;
