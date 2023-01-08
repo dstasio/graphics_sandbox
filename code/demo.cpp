@@ -284,29 +284,40 @@ int main() {
 
             float radius = length(gs_make_v2(lens_thickness * 0.5f, lens_height * 0.5f) - circle_center);
 
-            float resolution = 64.f;
-            float angle_step = 2*PI / resolution;
 
-
-            v2 points[250] = {};
+#define RESOLUTION 10
+            v2 points[RESOLUTION * 2] = {};
             int point_count = 0;
-            for (float angle = -PI; angle < PI; angle += angle_step)
+
+            v2 starting_radius = {lens_thickness * 0.5f, -lens_height * 0.5f};
+            starting_radius -= circle_center;
+            float max_angle = atan2f(starting_radius.y, starting_radius.x);
+            float angle_step = -max_angle / (float)RESOLUTION;
+
+            for (float angle = max_angle + angle_step; angle <= 0; angle += angle_step)
             {
                 v2 radius_dir = { cosf(angle), sinf(angle) };
                 radius_dir *= radius;
                 radius_dir += circle_center;
 
+#if 0
                 if (radius_dir.x < (lens_thickness * 0.5f))
                     continue;
+#endif
 
                 gs_draw_point(radius_dir.x, radius_dir.y, GS_YELLOW);
 
                 points[point_count++] = radius_dir;
             }
 
+            //_gs_assert(point_count == RESOLUTION);
+            for (int it = 1; it < point_count; it += 1) {
+            }
+#if 0
             for (int it = 1; it < point_count; it += 1) {
                 gs_draw_line(points[it - 1], points[it], GS_BLUE);
             }
+#endif
         }
         
 
