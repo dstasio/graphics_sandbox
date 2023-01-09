@@ -266,8 +266,75 @@ int main() {
 
         draw_refractive(&refractive);
 
+#if 1 // Line-Circumference intersection
+        {
+            float radius = 200.f;
+            v2    center = {};
+            // draw circumference
+            float angle_step = 2 * PI / 128.f;
+            
+            v2 prev_point = {};
+            v2 first_point = {};
+            int index = 0;
+            for (float angle = 0; angle < (2 * PI - 0.001f); angle += angle_step)
+            {
+                v2 radius_dir = { cosf(angle), sinf(angle) };
+                radius_dir *= radius;
+                radius_dir += center;
 
-#if 1
+#if 0
+                if (radius_dir.x < (lens_thickness * 0.5f))
+                    continue;
+#endif
+
+                if (index++ > 0)
+                    gs_draw_line(prev_point, radius_dir, GS_YELLOW);
+                else
+                    first_point = radius_dir;
+                prev_point = radius_dir;
+            }
+            gs_draw_line(first_point, prev_point, GS_YELLOW);
+
+
+            // line
+            //Ray r = {{400, 300}, normalize({-1.f, -0.3f})};
+            static Ray r = {{400, 100}, normalize({-1.f, 0.f})};
+            if (gs_state->current_input.m == GS_PRESSED)
+                r.dir = normalize(r.dir + gs_make_v2(0.f, 0.001f));
+            if (gs_state->current_input.n == GS_PRESSED)
+                r.dir = normalize(r.dir + gs_make_v2(0.f, -0.001f));
+            if (gs_state->current_input.v == GS_JUST_RELEASED) {
+                r.origin *= -1.f;
+                r.dir *= -1.f;
+            }
+
+            gs_draw_line(r.origin, r.origin + r.dir * 700.f, GS_BLUE);
+
+            v2 ray_normal = get_orthogonal(r.dir);
+            float center_dist_from_line = dot(ray_normal, r.origin - center);
+            if (fabsf(center_dist_from_line) <= radius) {
+#if 0
+                if (center_dist_from_line < 0.f) {
+                    ray_normal            *= -1.f;
+                    center_dist_from_line *= -1.f;
+                }
+#endif
+                float intersection_angle = asinf(center_dist_from_line / radius);
+                v2 intersection = { cosf(intersection_angle), center_dist_from_line / radius };
+                intersection *= radius;
+
+                gs_draw_line(center, center + ray_normal * 50.f, GS_GREEN);
+                gs_draw_line(center, center + r.dir      * 50.f, GS_GREEN);
+                intersection.x *= -1.f;
+                intersection    = transform_space(intersection, ray_normal, r.dir);
+
+                gs_draw_line(center, intersection, GS_BLUE);
+            }
+        }
+#endif
+
+
+#if 0
         {
             static v2 circle_center = {};
             if (gs_state->current_input.l == GS_PRESSED)

@@ -22,6 +22,7 @@
 #endif
 
 #include <stdint.h>
+#include <math.h>
 
 #if GS_WIN
 #include <windows.h>
@@ -182,7 +183,7 @@ int32_t _gs_abs(int32_t a)
 
 #if GS_INTERNAL
 #include <stdio.h>
-    #define output_string(s, ...)        {char Buffer[100];sprintf_s(Buffer, s, __VA_ARGS__);OutputDebugStringA(Buffer);}
+    #define output_string(s, ...)        {char Buffer[1000];sprintf_s(Buffer, s, __VA_ARGS__);OutputDebugStringA(Buffer);}
     #define throw_error_and_exit(e, ...) {output_string(" ------------------------------[ERROR] "   ## e, __VA_ARGS__); getchar(); global_error = true;}
     #define throw_error(e, ...)           output_string(" ------------------------------[ERROR] "   ## e, __VA_ARGS__)
     #define inform(i, ...)                output_string(" ------------------------------[INFO] "    ## i, __VA_ARGS__)
@@ -593,6 +594,10 @@ gs_v2 gs_world_to_screen(gs_v2 screen_point)
 
 void gs_draw_line(gs_v2 start_point, gs_v2 end_point, uint32_t color)
 {
+    _gs_assert(!isnan(start_point.x));
+    _gs_assert(!isnan(start_point.y));
+    _gs_assert(!isnan(end_point.x));
+    _gs_assert(!isnan(end_point.y));
     start_point = gs_world_to_screen(start_point);
       end_point = gs_world_to_screen(  end_point);
 
