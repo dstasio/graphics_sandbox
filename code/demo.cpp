@@ -5,6 +5,8 @@
 #include <math.h>
 
 #define PI 3.1415926535897932384626433832795028841971f
+#define REFR_INDEX_AIR   1.000293f
+#define REFR_INDEX_GLASS 1.52f
 
 bool equals(float a, float b, float eps = 0.0001f)
 {
@@ -160,7 +162,7 @@ float intersect(Refractive_Segment *object, Ray ray)
     return right_steps;
 }
 
-bool refract(Refractive_Segment *object, Ray incoming_ray, Ray *refracted_ray)
+bool refract_by_object(Refractive_Segment *object, Ray incoming_ray, Ray *refracted_ray)
 {
     float dist = intersect(object, incoming_ray);
     if (dist < 0.f)
@@ -193,6 +195,22 @@ bool refract(Refractive_Segment *object, Ray incoming_ray, Ray *refracted_ray)
     return true;
 }
 
+Ray refract(v2 intersection, v2 normal_towards_incoming, Ray incoming_ray,
+            float leaving_refractive_index, float entering_refractive_index)
+             
+{
+    float normal_angle = atan2f(normal_towards_incoming.y, normal_towards_incoming.x);
+
+    float  incoming_angle  = atan2f(-incoming_ray.dir.y, -incoming_ray.dir.x);
+    incoming_angle -= normal_angle;
+    float refracted_angle  = asinf((leaving_refractive_index / entering_refractive_index) * sinf(incoming_angle));
+
+    Ray refracted = {};
+    refracted.origin = intersection;
+    refracted.dir    = vector_from_angle(PI + normal_angle + refracted_angle);
+    return refracted;
+}
+
 int main() {
     Ray rays[10] = {};
 
@@ -208,7 +226,7 @@ int main() {
         }
     }
 
-    Refractive_Segment refractive = {{500.f, 10.f}, {300.f, 900.f}, 1.52f};
+    Refractive_Segment refractive = {{500.f, 10.f}, {300.f, 900.f}, REFR_INDEX_GLASS};
 
     while(gs_window_2d())
     {
@@ -240,7 +258,7 @@ int main() {
             lightray.dir    = normalize(mouse - lightray.origin);
 
             Ray refracted;
-            if (refract(&refractive, lightray, &refracted))
+            if (refract_by_object(&refractive, lightray, &refracted))
             {
                 gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 500.f, GS_CYAN);
                 gs_draw_line(lightray.origin, refracted.origin, GS_CYAN);
@@ -254,7 +272,7 @@ int main() {
         for (int it = 0; it < _gs_array_len(rays); it += 1)
         {
             Ray refracted;
-            if (refract(&refractive, rays[it], &refracted))
+            if (refract_by_object(&refractive, rays[it], &refracted))
             {
                 gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 500.f, GS_RGB(0xA7, 0x35, 0x59));
                 gs_draw_line(rays[it].origin, refracted.origin, GS_RGB(0xA7, 0x35, 0x59));
@@ -308,8 +326,6 @@ int main() {
                 r.dir *= -1.f;
             }
 
-            gs_draw_line(r.origin, r.origin + r.dir * 700.f, GS_BLUE);
-
             v2 ray_normal = get_orthogonal(r.dir);
             float center_dist_from_line = dot(ray_normal, r.origin - center);
             if (fabsf(center_dist_from_line) <= radius) {
@@ -323,12 +339,14 @@ int main() {
                 v2 intersection = { cosf(intersection_angle), center_dist_from_line / radius };
                 intersection *= radius;
 
-                gs_draw_line(center, center + ray_normal * 50.f, GS_GREEN);
-                gs_draw_line(center, center + r.dir      * 50.f, GS_GREEN);
                 intersection.x *= -1.f;
                 intersection    = transform_space(intersection, ray_normal, r.dir);
 
-                gs_draw_line(center, intersection, GS_BLUE);
+                v2 intersection_normal = normalize(intersection - center );
+                Ray refracted = refract(intersection, intersection_normal, r, REFR_INDEX_AIR, REFR_INDEX_GLASS);
+
+                gs_draw_line(r.origin, intersection, GS_BLUE);
+                gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 200.f, GS_GREEN);
             }
         }
 #endif
