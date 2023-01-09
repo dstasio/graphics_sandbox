@@ -250,6 +250,7 @@ bool gs_window_2d()
     if (!gs_state)
     {
         gs_state = &_gs_default_state;
+        gs_state->origin = {500, 330};
     }
 
     if (!gs_state->window)

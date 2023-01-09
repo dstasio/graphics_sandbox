@@ -273,8 +273,8 @@ int main() {
                 circle_center.x += 0.5f;
             if (gs_state->current_input.h == GS_PRESSED)
                 circle_center.x -= 0.5f;
-            float lens_height    = 100.f;
-            float lens_thickness =  50.f;
+            float lens_height    = 500.f;
+            float lens_thickness = 200.f;
 
             gs_draw_point(circle_center.x, circle_center.y, GS_RED, 10.f);
             gs_draw_point( lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
@@ -294,7 +294,7 @@ int main() {
             float max_angle = atan2f(starting_radius.y, starting_radius.x);
             float angle_step = -max_angle / (float)RESOLUTION;
 
-            for (float angle = max_angle + angle_step; angle <= 0; angle += angle_step)
+            for (float angle = max_angle + angle_step; angle < -0.001f; angle += angle_step)
             {
                 v2 radius_dir = { cosf(angle), sinf(angle) };
                 radius_dir *= radius;
@@ -305,16 +305,25 @@ int main() {
                     continue;
 #endif
 
-                gs_draw_point(radius_dir.x, radius_dir.y, GS_YELLOW);
-
                 points[point_count++] = radius_dir;
             }
 
-            //_gs_assert(point_count == RESOLUTION);
-            for (int it = 1; it < point_count; it += 1) {
+            points[point_count++] = circle_center + gs_make_v2(radius, 0);
+
+            int generated_point_count = point_count;
+            _gs_assert(point_count == RESOLUTION);
+            for (int it = (point_count - 2); it >= 0; it -= 1) {
+                v2 point = points[it];
+                point.y *= -1.f;
+                points[point_count++] = point;
             }
-#if 0
-            for (int it = 1; it < point_count; it += 1) {
+#if 1
+            gs_draw_line({lens_thickness * 0.5f, -lens_height * 0.5f}, points[0], GS_BLUE);
+            gs_draw_line({lens_thickness * 0.5f,  lens_height * 0.5f}, points[point_count - 1], GS_BLUE);
+            for (int it = 0; it < point_count; it += 1) {
+                //gs_draw_point(points[it].x, points[it].y, GS_YELLOW);
+
+                if (it == 0) continue;
                 gs_draw_line(points[it - 1], points[it], GS_BLUE);
             }
 #endif
