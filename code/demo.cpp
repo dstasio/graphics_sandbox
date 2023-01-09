@@ -267,6 +267,7 @@ int main() {
         draw_refractive(&refractive);
 
 
+#if 1
         {
             static v2 circle_center = {};
             if (gs_state->current_input.l == GS_PRESSED)
@@ -277,16 +278,18 @@ int main() {
             float lens_thickness = 200.f;
 
             gs_draw_point(circle_center.x, circle_center.y, GS_RED, 10.f);
+#if 0
             gs_draw_point( lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
             gs_draw_point(-lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
             gs_draw_point( lens_thickness * 0.5f, -lens_height * 0.5f, GS_CYAN);
             gs_draw_point(-lens_thickness * 0.5f, -lens_height * 0.5f, GS_CYAN);
+#endif
 
             float radius = length(gs_make_v2(lens_thickness * 0.5f, lens_height * 0.5f) - circle_center);
 
 
 #define RESOLUTION 10
-            v2 points[RESOLUTION * 2] = {};
+            v2 lens_face_points[RESOLUTION * 2 + 2] = {};
             int point_count = 0;
 
             v2 starting_radius = {lens_thickness * 0.5f, -lens_height * 0.5f};
@@ -294,6 +297,7 @@ int main() {
             float max_angle = atan2f(starting_radius.y, starting_radius.x);
             float angle_step = -max_angle / (float)RESOLUTION;
 
+            lens_face_points[point_count++] = starting_radius + circle_center;
             for (float angle = max_angle + angle_step; angle < -0.001f; angle += angle_step)
             {
                 v2 radius_dir = { cosf(angle), sinf(angle) };
@@ -305,29 +309,34 @@ int main() {
                     continue;
 #endif
 
-                points[point_count++] = radius_dir;
+                lens_face_points[point_count++] = radius_dir;
             }
 
-            points[point_count++] = circle_center + gs_make_v2(radius, 0);
+            lens_face_points[point_count++] = circle_center + gs_make_v2(radius, 0);
 
-            int generated_point_count = point_count;
-            _gs_assert(point_count == RESOLUTION);
+            //_gs_assert(point_count == RESOLUTION);
             for (int it = (point_count - 2); it >= 0; it -= 1) {
-                v2 point = points[it];
+                v2 point = lens_face_points[it];
                 point.y *= -1.f;
-                points[point_count++] = point;
+                lens_face_points[point_count++] = point;
             }
 #if 1
-            gs_draw_line({lens_thickness * 0.5f, -lens_height * 0.5f}, points[0], GS_BLUE);
-            gs_draw_line({lens_thickness * 0.5f,  lens_height * 0.5f}, points[point_count - 1], GS_BLUE);
             for (int it = 0; it < point_count; it += 1) {
-                //gs_draw_point(points[it].x, points[it].y, GS_YELLOW);
+                gs_draw_point(lens_face_points[it].x, lens_face_points[it].y, GS_YELLOW);
 
                 if (it == 0) continue;
-                gs_draw_line(points[it - 1], points[it], GS_BLUE);
+                gs_draw_line(lens_face_points[it - 1], lens_face_points[it], GS_BLUE);
             }
 #endif
+
+            v2 other_face[RESOLUTION * 2 + 2] = {};
+            for (int it = 0; it < point_count; it += 1) {
+                other_face[it] = lens_face_points[it];
+                other_face[it].x *= -1.f;
+                gs_draw_point(other_face[it].x, other_face[it].y, GS_GREEN);
+            }
         }
+#endif
         
 
         gs_swap_buffers();
