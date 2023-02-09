@@ -95,6 +95,7 @@ struct GS_Input
             uint8_t shift;
             uint8_t space;
             uint8_t tab;
+            uint8_t enter;
             uint8_t arrow_right;
             uint8_t arrow_left;
             uint8_t arrow_up;
@@ -105,7 +106,7 @@ struct GS_Input
             uint8_t mouse_middle;
         };
 
-        uint8_t keys[37];
+        uint8_t keys[38];
     };
 };
 
@@ -402,6 +403,7 @@ bool gs_window_2d()
                 _GS_Keydown(      shift, VK_SHIFT);
                 _GS_Keydown(      space, VK_SPACE);
                 _GS_Keydown(        tab, VK_TAB);
+                _GS_Keydown(      enter, VK_RETURN);
                 _GS_Keydown(arrow_right, VK_RIGHT);
                 _GS_Keydown(arrow_left , VK_LEFT);
                 _GS_Keydown(arrow_up   , VK_UP);
@@ -441,6 +443,7 @@ bool gs_window_2d()
                 _GS_Keyup(      shift, VK_SHIFT);
                 _GS_Keyup(      space, VK_SPACE);
                 _GS_Keyup(        tab, VK_TAB);
+                _GS_Keyup(      enter, VK_RETURN);
                 _GS_Keyup(arrow_right, VK_RIGHT);
                 _GS_Keyup(arrow_left , VK_LEFT);
                 _GS_Keyup(arrow_up   , VK_UP);

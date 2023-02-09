@@ -106,6 +106,12 @@ struct Refractive_Segment
     float refractive_index;
 };
 
+struct Refractive_Arc
+{
+    v2    center_of_curvature;
+    float radius;
+};
+
 void draw_refractive(Refractive_Segment *object)
 {
     float inside_dist = 5.f;
@@ -284,7 +290,7 @@ int main() {
 
         draw_refractive(&refractive);
 
-#if 1 // Line-Circumference intersection
+#if 0 // Line-Circumference intersection
         {
             float radius = 200.f;
             v2    center = {};
@@ -300,11 +306,6 @@ int main() {
                 radius_dir *= radius;
                 radius_dir += center;
 
-#if 0
-                if (radius_dir.x < (lens_thickness * 0.5f))
-                    continue;
-#endif
-
                 if (index++ > 0)
                     gs_draw_line(prev_point, radius_dir, GS_YELLOW);
                 else
@@ -315,26 +316,10 @@ int main() {
 
 
             // line
-            //Ray r = {{400, 300}, normalize({-1.f, -0.3f})};
             static Ray r = {{400, 100}, normalize({-1.f, 0.f})};
-            if (gs_state->current_input.m == GS_PRESSED)
-                r.dir = normalize(r.dir + gs_make_v2(0.f, 0.001f));
-            if (gs_state->current_input.n == GS_PRESSED)
-                r.dir = normalize(r.dir + gs_make_v2(0.f, -0.001f));
-            if (gs_state->current_input.v == GS_JUST_RELEASED) {
-                r.origin *= -1.f;
-                r.dir *= -1.f;
-            }
-
             v2 ray_normal = get_orthogonal(r.dir);
             float center_dist_from_line = dot(ray_normal, r.origin - center);
             if (fabsf(center_dist_from_line) <= radius) {
-#if 0
-                if (center_dist_from_line < 0.f) {
-                    ray_normal            *= -1.f;
-                    center_dist_from_line *= -1.f;
-                }
-#endif
                 float intersection_angle = asinf(center_dist_from_line / radius);
                 v2 intersection = { cosf(intersection_angle), center_dist_from_line / radius };
                 intersection *= radius;
@@ -352,17 +337,10 @@ int main() {
 #endif
 
 
-#if 0
+#if 1
         {
-            static v2 circle_center = {};
-            if (gs_state->current_input.l == GS_PRESSED)
-                circle_center.x += 0.5f;
-            if (gs_state->current_input.h == GS_PRESSED)
-                circle_center.x -= 0.5f;
             float lens_height    = 500.f;
             float lens_thickness = 200.f;
-
-            gs_draw_point(circle_center.x, circle_center.y, GS_RED, 10.f);
 #if 0
             gs_draw_point( lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
             gs_draw_point(-lens_thickness * 0.5f,  lens_height * 0.5f, GS_CYAN);
@@ -370,55 +348,90 @@ int main() {
             gs_draw_point(-lens_thickness * 0.5f, -lens_height * 0.5f, GS_CYAN);
 #endif
 
-            float radius = length(gs_make_v2(lens_thickness * 0.5f, lens_height * 0.5f) - circle_center);
-
 
 #define RESOLUTION 10
-            v2 lens_face_points[RESOLUTION * 2 + 2] = {};
-            int point_count = 0;
+#if 1 // temp
+            static
+#endif // temp
+            struct {
+                v2 draw_points[500]; // @todo: dynamic/runtime-static array
+                int draw_points_count;
+
+                v2 center_of_curvature;
+            } lens_face = {};
+#if 1 // temp
+            lens_face.draw_points_count = 0;
+#endif // temp
+
+            if (gs_state->current_input.l == GS_PRESSED)
+                lens_face.center_of_curvature.x += 0.5f;
+            if (gs_state->current_input.h == GS_PRESSED)
+                lens_face.center_of_curvature.x -= 0.5f;
+            gs_draw_point(lens_face.center_of_curvature.x, lens_face.center_of_curvature.y, GS_RED, 10.f);
+            float radius = length(gs_make_v2(lens_thickness * 0.5f, lens_height * 0.5f) - lens_face.center_of_curvature);
+
 
             v2 starting_radius = {lens_thickness * 0.5f, -lens_height * 0.5f};
-            starting_radius -= circle_center;
+            starting_radius -= lens_face.center_of_curvature;
             float max_angle = atan2f(starting_radius.y, starting_radius.x);
             float angle_step = -max_angle / (float)RESOLUTION;
 
-            lens_face_points[point_count++] = starting_radius + circle_center;
+            lens_face.draw_points[lens_face.draw_points_count++] = starting_radius + lens_face.center_of_curvature;
             for (float angle = max_angle + angle_step; angle < -0.001f; angle += angle_step)
             {
                 v2 radius_dir = { cosf(angle), sinf(angle) };
                 radius_dir *= radius;
-                radius_dir += circle_center;
+                radius_dir += lens_face.center_of_curvature;
 
-#if 0
-                if (radius_dir.x < (lens_thickness * 0.5f))
-                    continue;
-#endif
-
-                lens_face_points[point_count++] = radius_dir;
+                lens_face.draw_points[lens_face.draw_points_count++] = radius_dir;
             }
 
-            lens_face_points[point_count++] = circle_center + gs_make_v2(radius, 0);
+            lens_face.draw_points[lens_face.draw_points_count++] = lens_face.center_of_curvature + gs_make_v2(radius, 0);
 
-            //_gs_assert(point_count == RESOLUTION);
-            for (int it = (point_count - 2); it >= 0; it -= 1) {
-                v2 point = lens_face_points[it];
+            _gs_assert(lens_face.draw_points_count == (RESOLUTION + 1));
+            for (int it = (lens_face.draw_points_count - 2); it >= 0; it -= 1) {
+                v2 point = lens_face.draw_points[it];
                 point.y *= -1.f;
-                lens_face_points[point_count++] = point;
+                lens_face.draw_points[lens_face.draw_points_count++] = point;
             }
 #if 1
-            for (int it = 0; it < point_count; it += 1) {
-                gs_draw_point(lens_face_points[it].x, lens_face_points[it].y, GS_YELLOW);
+            for (int it = 0; it < lens_face.draw_points_count; it += 1) {
+                gs_draw_point(lens_face.draw_points[it].x, lens_face.draw_points[it].y, GS_YELLOW);
 
                 if (it == 0) continue;
-                gs_draw_line(lens_face_points[it - 1], lens_face_points[it], GS_BLUE);
+                gs_draw_line(lens_face.draw_points[it - 1], lens_face.draw_points[it], GS_BLUE);
             }
 #endif
 
-            v2 other_face[RESOLUTION * 2 + 2] = {};
-            for (int it = 0; it < point_count; it += 1) {
-                other_face[it] = lens_face_points[it];
-                other_face[it].x *= -1.f;
-                gs_draw_point(other_face[it].x, other_face[it].y, GS_GREEN);
+            // Line intersection
+            static Ray r = {{400, 100}, normalize({-1.f, 0.f})};
+            if (gs_state->current_input.n == GS_PRESSED)
+                r.dir = normalize(r.dir + gs_make_v2(0.f, -0.005f));
+            if (gs_state->current_input.m == GS_PRESSED)
+                r.dir = normalize(r.dir + gs_make_v2(0.f,  0.005f));
+
+            v2 ray_normal = get_orthogonal(r.dir);
+            float center_dist_from_line = dot(ray_normal, r.origin - lens_face.center_of_curvature);
+            if (fabsf(center_dist_from_line) <= radius) {
+                float intersection_angle = asinf(center_dist_from_line / radius);
+
+                gs_draw_point(cosf(max_angle) * radius, sinf(max_angle) * radius, GS_GREEN, 10.f);
+                if ((intersection_angle >= max_angle) && (intersection_angle <= -max_angle)) {
+                    if (gs_state->current_input.enter == GS_JUST_RELEASED)
+                        inform("angle: %.2f\n", intersection_angle);
+                    v2 intersection = { cosf(intersection_angle), center_dist_from_line / radius };
+                    intersection *= radius;
+
+                    intersection.x *= -1.f;
+                    intersection    = transform_space(intersection, ray_normal, r.dir);
+                    intersection   += lens_face.center_of_curvature;
+
+                    v2 intersection_normal = normalize(intersection - lens_face.center_of_curvature);
+                    Ray refracted = refract(intersection, intersection_normal, r, REFR_INDEX_AIR, REFR_INDEX_GLASS);
+
+                    gs_draw_line(r.origin, intersection, GS_BLUE);
+                    gs_draw_line(refracted.origin, refracted.origin + refracted.dir * 200.f, GS_GREEN);
+                }
             }
         }
 #endif
