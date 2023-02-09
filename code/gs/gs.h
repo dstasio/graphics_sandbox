@@ -154,6 +154,7 @@ void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point
 
 void gs_draw_line          (gs_v2 start_point, gs_v2 end_point, uint32_t color);
 void gs_draw_line_on_screen(int32_t x0, int32_t y0, uint32_t c0, int32_t x1, int32_t y1, uint32_t c1);
+void gs_draw_quad_on_screen(int32_t minx, int32_t miny, int32_t maxx, int32_t maxy, uint32_t color);
 
 void gs_swap_buffers();
 void gs_clear(uint32_t color = GS_GREY(0));
@@ -565,6 +566,22 @@ void gs_draw_pixel(int32_t x, int32_t y, uint32_t color)
     if (y < 0 || y >= gs_state->backbuffer_height)
         return;
     ((uint32_t *)gs_state->backbuffer)[y * gs_state->backbuffer_width + x] = color;
+}
+
+void gs_draw_quad_on_screen(int32_t minx, int32_t miny, int32_t maxx, int32_t maxy, uint32_t color)
+{
+    _gs_assert(minx <= maxx);
+    _gs_assert(miny <= maxy);
+
+    for (int32_t xx = minx; xx < maxx; xx += 1) {
+    for (int32_t yy = miny; yy < maxy; yy += 1) {
+        if (xx < 0 || xx >= gs_state->backbuffer_width)
+            continue;
+        if (yy < 0 || yy >= gs_state->backbuffer_height)
+            continue;
+
+        ((uint32_t *)gs_state->backbuffer)[yy * gs_state->backbuffer_width + xx] = color;
+    }}
 }
 
 void gs_clear(uint32_t color)
