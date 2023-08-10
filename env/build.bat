@@ -16,11 +16,14 @@ set       windows_h_flags=-DNOMINMAX -DWIN32_LEAN_AND_MEAN
 set common_compiler_flags=-DGS_INTERNAL=1 -diagnostics:column -MTd -nologo -Gm- -GR- -EHa- -Od -Oi -WX -W4 %ignored_warnings% -FAsc -Z7 %windows_h_flags%
 set   common_linker_flags=-incremental:no -opt:ref user32.lib
 
-REM 64-bit build
+REM demo build
 del *.pdb > NUL 2> NUL
 set   code_root=%proj_root%\code
 set source_list="%code_root%\demo.cpp"
-cl %common_compiler_flags% %source_list% -Fmwin32_layer.map /link %common_linker_flags% gdi32.lib
+cl %common_compiler_flags% %source_list% -Fmdemo.map /link %common_linker_flags% gdi32.lib
+
+set source_list="%code_root%\cross_tests.cpp"
+cl %common_compiler_flags% %source_list% /link %common_linker_flags% gdi32.lib
 
 popd REM .\build
 popd REM %proj_root
