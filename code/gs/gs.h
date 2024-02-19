@@ -52,6 +52,7 @@ struct gs_v2
 };
 gs_v2  operator -  (gs_v2  a)          { return {-a.x, -a.y}; }
 gs_v2  operator *  (gs_v2  a, float b) { return { a.x * b, a.y * b}; }
+gs_v2  operator /  (gs_v2  a, float b) { return { a.x / b, a.y / b}; }
 gs_v2  operator +  (gs_v2  a, gs_v2 b) { return { a.x + b.x, a.y + b.y }; }
 gs_v2  operator -  (gs_v2  a, gs_v2 b) { return { a.x - b.x, a.y - b.y }; }
 gs_v2 &operator *= (gs_v2 &a, float b) { a.x *= b  ; a.y *= b  ; return a; }
@@ -191,6 +192,7 @@ void gs_draw_point(float x, float y, uint32_t color = GS_GREY(0xFF), float point
 
 void gs_draw_line          (gs_v2 start_point, gs_v2 end_point, uint32_t color);
 void gs_draw_line_on_screen(int32_t x0, int32_t y0, uint32_t c0, int32_t x1, int32_t y1, uint32_t c1);
+void gs_draw_arrow         (gs_v2 start_point, gs_v2 end_point, uint32_t color);
 void gs_draw_quad          (float   minx, float   miny, float   maxx, float   maxy, uint32_t color);
 void gs_draw_quad_on_screen(int32_t minx, int32_t miny, int32_t maxx, int32_t maxy, uint32_t color);
 void gs_draw_quad_on_screen(gs_v2 p0, gs_v2 p1, gs_v2 p2, gs_v2 p3, uint32_t color);
@@ -743,6 +745,13 @@ void gs_draw_line_on_screen(int32_t x0, int32_t y0, uint32_t c0,
         }
     }
 }
+
+void gs_draw_arrow(gs_v2 start_point, gs_v2 end_point, uint32_t color)
+{
+    gs_draw_line(start_point, end_point, color);
+    gs_draw_point(end_point.x, end_point.y, color, 1);
+}
+
 
 void gs_draw_triangle_on_screen(gs_v2 p0, gs_v2 p1, gs_v2 p2, uint32_t color) {
     // slow, accurate version
